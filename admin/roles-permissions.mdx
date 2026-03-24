@@ -1,0 +1,95 @@
+---
+title: 'Roles and permissions'
+description: 'Understanding the four user roles in Front Helpdesk'
+---
+
+Every authenticated user in Front Helpdesk has a role that determines which parts of the admin panel they can access and what actions they can perform. The role is set when a user account is created and is returned as part of the login response.
+
+## The `UserRole` type
+
+Roles are defined as a TypeScript union type in the shared auth model:
+
+```typescript
+export type UserRole = 'ADMIN' | 'MESA' | 'AREA' | 'USUARIO';
+```
+
+The `rol` field is returned on the `AuthUser` object after a successful login:
+
+```typescript
+export interface AuthUser {
+  id: string;
+  email: string;
+  nombre: string;
+  rol: UserRole;
+  area?: string | null; // relevant for AREA role
+}
+```
+
+## The four roles
+
+<CardGroup cols={2}>
+  <Card title="ADMIN" icon="shield">
+    Full access to the entire admin panel. Can manage users, view all tickets, perform any ticket action, and access the **Dashboard**. This role is intended for system administrators.
+  </Card>
+
+  <Card title="MESA" icon="headset">
+    Help desk agents who handle incoming tickets. Can access the **Dashboard**, the full tickets list, and individual ticket detail pages. Can assign tickets and update their status.
+  </Card>
+
+  <Card title="AREA" icon="folder">
+    Area-specific agents. Can view and work on tickets assigned to their area. The `area` field on their `AuthUser` object determines which tickets are visible to them.
+  </Card>
+
+  <Card title="USUARIO" icon="user">
+    Standard users with limited access. Intended for end users who submit tickets rather than agents who resolve them.
+  </Card>
+</CardGroup>
+
+## Permissions by role
+
+| Feature | ADMIN | MESA | AREA | USUARIO |
+|---|:---:|:---:|:---:|:---:|
+| **Dashboard** | ✓ | ✓ | — | — |
+| **Tickets list** | ✓ | ✓ | ✓ | — |
+| **Ticket detail** | ✓ | ✓ | ✓ | — |
+| Assign / update tickets | ✓ | ✓ | ✓ | — |
+| **Users management** | ✓ | — | — | — |
+| All ticket actions | ✓ | — | — | — |
+
+## The `area` field
+
+Users with the `AREA` role have an optional `area` property on their `AuthUser` object:
+
+```typescript
+area?: string | null;
+```
+
+This value restricts which tickets are visible to that user — they only see tickets that are assigned to their area. Users with `ADMIN` or `MESA` roles are not restricted in this way and can see all tickets regardless of area.
+
+## How roles are assigned
+
+The role is set on the `AuthUser` object returned by the login API:
+
+```json
+{
+  "access_token": "eyJhbGci...",
+  "token_type": "bearer",
+  "user": {
+    "id": "42",
+    "email": "agent@helpdesk.com",
+    "nombre": "Support Agent",
+    "rol": "MESA",
+    "area": null
+  }
+}
+```
+
+The panel stores this object in `localStorage` under the key `admin_user` and reads it when determining what to display for the current session.
+
+## Changing a user's role
+
+Only users with the `ADMIN` role can change another user's role. You do this through the **Users management** section of the admin panel.
+
+<Tip>
+  See [Users management](/admin/users-management) for step-by-step instructions on updating a user's role or area assignment.
+</Tip>

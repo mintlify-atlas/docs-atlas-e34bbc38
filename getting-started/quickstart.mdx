@@ -1,0 +1,120 @@
+---
+title: "Quickstart"
+description: "Get Front Helpdesk running locally in minutes"
+---
+
+## Prerequisites
+
+Before you start, make sure you have the following installed:
+
+- **Node.js** v20 or later
+- **Angular CLI** v21 (`npm install -g @angular/cli`)
+
+<Note>
+  Both apps communicate with a backend REST API. You must have the backend running at `http://127.0.0.1:8000` before the apps can fetch or submit data. See the environment configuration step below for details.
+</Note>
+
+## Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <repository-url>
+    cd front-helpdesk
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all workspace dependencies with a single command from the project root:
+
+    ```bash
+    npm install
+    ```
+  </Step>
+
+  <Step title="Configure the backend API URL">
+    Each app reads the API base URL from its own environment file. The development defaults already point to a locally-running backend.
+
+    **Public app** — `projects/public/src/environments/environment.ts`:
+
+    ```typescript
+    export const environment = {
+      production: false,
+      apiBase: 'http://127.0.0.1:8000'
+    };
+    ```
+
+    **Admin app** — `projects/admin/src/environments/environment.ts`:
+
+    ```typescript
+    export const environment = {
+      production: false,
+      apiBase: 'http://127.0.0.1:8000'
+    };
+    ```
+
+    Update `apiBase` in both files if your backend runs on a different host or port. For production builds, edit the corresponding `environment.prod.ts` files instead — Angular replaces the development file automatically during a production build.
+  </Step>
+
+  <Step title="Start the public app">
+    ```bash
+    ng serve public
+    ```
+
+    The public portal opens at **http://localhost:4200**. It provides the ticket submission form (`/solicitud`) and the ticket tracking page (`/consulta`).
+  </Step>
+
+  <Step title="Start the admin app">
+    Open a second terminal and run:
+
+    ```bash
+    ng serve admin
+    ```
+
+    The admin panel opens at **http://localhost:4201**. It requires login and provides the dashboard, ticket management, and user management views.
+
+    <Tip>
+      Both dev servers can run at the same time because Angular CLI assigns each project its own port when you use `ng serve <project>`.
+    </Tip>
+  </Step>
+</Steps>
+
+## Build for production (SSR)
+
+Both apps are configured for Angular Server-Side Rendering (SSR). Use the following commands to create a production build and then serve it with the included Express server.
+
+### Build
+
+<CodeGroup>
+
+```bash public app
+ng build public
+```
+
+```bash admin app
+ng build admin
+```
+
+</CodeGroup>
+
+Output is written to `dist/public/` and `dist/admin/` respectively.
+
+### Serve
+
+<CodeGroup>
+
+```bash public app
+npm run serve:ssr:public
+```
+
+```bash admin app
+npm run serve:ssr:admin
+```
+
+</CodeGroup>
+
+The SSR servers listen on port `4000` by default. You can override this with the `PORT` environment variable:
+
+```bash
+PORT=3000 npm run serve:ssr:public
+```

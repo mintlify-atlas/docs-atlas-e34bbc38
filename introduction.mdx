@@ -1,6 +1,6 @@
 ---
-title: "Front Helpdesk"
-description: "An Angular-based helpdesk platform with a public ticket portal and a role-based admin panel."
+title: "Introduction"
+description: "Front Helpdesk — an Angular-based helpdesk platform with a public ticket portal and a role-based admin panel."
 ---
 
 ## What is Front Helpdesk?
@@ -11,17 +11,17 @@ Front Helpdesk is a full-featured helpdesk application built with Angular 21. It
 - **Admin Panel** — A secure, role-based dashboard for agents and administrators to manage tickets, monitor KPIs, track SLAs, and administer user accounts.
 
 <CardGroup cols={2}>
-  <Card title="Quick start" icon="rocket" href="/getting-started/quickstart">
+  <Card title="Quick Start" icon="rocket" href="/getting-started/quickstart">
     Get the application running locally in minutes
   </Card>
   <Card title="Architecture" icon="sitemap" href="/getting-started/architecture">
     Understand the two-app Angular workspace structure
   </Card>
-  <Card title="Public portal" icon="globe" href="/public/overview">
+  <Card title="Public Portal" icon="globe" href="/public/overview">
     Learn how customers submit and track support tickets
   </Card>
-  <Card title="Admin panel" icon="shield-halved" href="/admin/dashboard">
-    Explore the dashboard, ticket management, and SLA tracking
+  <Card title="Admin Panel" icon="shield-halved" href="/admin/dashboard">
+    Explore the admin dashboard, ticket management, and SLA tracking
   </Card>
 </CardGroup>
 
@@ -47,3 +47,26 @@ Front Helpdesk is a full-featured helpdesk application built with Angular 21. It
     Angular Universal SSR for both public and admin apps for fast initial page loads
   </Card>
 </CardGroup>
+
+## Application structure
+
+The repository is an Angular multi-project workspace with three projects:
+
+| Project | Path | Description |
+|---------|------|-------------|
+| `public` | `projects/public/` | Customer-facing ticket portal |
+| `admin` | `projects/admin/` | Agent and admin management panel |
+| `shared` | `projects/shared/` | Shared services, models, and types |
+
+## Technology stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Angular 21 with standalone components |
+| UI components | Angular Material 21 |
+| Charts | Chart.js 4 via ng2-charts |
+| Rendering | Angular Universal (SSR) |
+| HTTP server | Express 5 |
+| Styling | SCSS |
+| Testing | Vitest |
+| Language | TypeScript 5.9 |

@@ -1,0 +1,143 @@
+---
+title: "Users management"
+description: "Creating, updating, and deactivating agent accounts"
+---
+
+The **Gestión de Usuarios** page lets you manage all system accounts — create new agents, update their profiles, change their role or area, toggle their active status, and permanently delete accounts.
+
+<Note>
+  Only users with the `ADMIN` role can access this page. Agents with `MESA` or `AREA` roles do not see this section in the admin panel.
+</Note>
+
+## Users table
+
+The page lists every registered user in a table. The following columns are shown for each user:
+
+| Column | Field | Description |
+|---|---|---|
+| **Miembro** | `nombre` | User's full name with an avatar showing their initial |
+| **Correo** | `email` | Email address used to log in |
+| **Área** | `area` | Assigned department or area; shows `General` if none |
+| **Rol** | `rol` | One of `ADMIN`, `MESA`, `AREA`, `USUARIO` |
+| **Estado** | `is_active` | `ACTIVO` or `INACTIVO` |
+| **Acciones** | — | **Editar** and **Desactivar** buttons |
+
+### Filtering users
+
+Use the filter bar to narrow the list:
+
+- **Search** — matches against `nombre`, `email`, `telefono`, or user `id` (case-insensitive).
+- **Rol** dropdown — filter by role: `TODOS`, `ADMIN`, `MESA`, `AREA`, `USUARIO`.
+- **Estado** dropdown — filter by status: `TODOS`, `ACTIVO`, `INACTIVO`.
+
+Click **Limpiar** to reset all filters.
+
+## Creating a new user
+
+<Steps>
+  <Step title="Open the create form">
+    Click **Nuevo Usuario** in the top-right corner. A modal opens with the title **Registrar Nuevo Usuario**.
+  </Step>
+
+  <Step title="Fill in the required fields">
+    Complete at minimum: **Nombre Completo**, **Correo Electrónico**, **Contraseña de Acceso**, **Confirmar Contraseña**, and **Rol en el Sistema**.
+  </Step>
+
+  <Step title="Set the area if required">
+    The **Área / Departamento** field is mandatory and auto-filled when you select the `MESA` role (set to `MESA DE AYUDA`) or the `AREA` role (defaults to `SISTEMAS`). For `ADMIN` and `USUARIO` roles, no area is required.
+  </Step>
+
+  <Step title="Submit the form">
+    Click **Crear Cuenta**. The form sends `POST /api/auth/users` and reloads the user list on success.
+  </Step>
+</Steps>
+
+### Create user form fields
+
+<ParamField body="nombre" type="string" required>
+  Full name of the user. Minimum 2 characters.
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Email address. Must be a valid email format. This value cannot be changed after creation.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Account password. Minimum 6 characters. Must match `confirmPassword`.
+</ParamField>
+
+<ParamField body="rol" type="string" required>
+  System role. One of:
+
+  | Value | Description |
+  |---|---|
+  | `ADMIN` | Full access to all admin features including user management |
+  | `MESA` | Help desk agent — can see and manage all tickets |
+  | `AREA` | Area agent — can only see tickets assigned to their area |
+  | `USUARIO` | End user — no admin panel access |
+</ParamField>
+
+<ParamField body="area" type="string">
+  Operational area. Required when `rol` is `MESA` or `AREA`. One of: `SISTEMAS`, `SOPORTE TÉCNICO`, `REDES`, `INFRAESTRUCTURA`, `DESARROLLO`, `MESA DE AYUDA`.
+
+  Automatically set to `MESA DE AYUDA` for the `MESA` role.
+</ParamField>
+
+<ParamField body="telefono" type="string">
+  Contact phone number. Optional. Maximum 30 characters.
+</ParamField>
+
+## Updating a user
+
+Click **Editar** on any row to open the **Editar Perfil de Usuario** modal. All fields from the create form are pre-populated. The `email` field is read-only in edit mode.
+
+You can update any combination of: `nombre`, `telefono`, `password`, `rol`, `area`, and `is_active`. Leave the password fields blank to keep the current password unchanged.
+
+The form sends:
+
+```
+PATCH /api/auth/users/:id
+```
+
+With a `UserUpdatePayload` containing only the fields you changed:
+
+```typescript
+interface UserUpdatePayload {
+  email?: string;
+  nombre?: string;
+  password?: string;
+  rol?: UserRole;
+  area?: string | null;
+  telefono?: string | null;
+  is_active?: boolean;
+}
+```
+
+## Deactivating a user
+
+To deactivate a user without deleting their account, click **Desactivar** in the **Acciones** column. This toggles `is_active` to `false` via:
+
+```
+PATCH /api/auth/users/:id
+{ "is_active": false }
+```
+
+A deactivated user cannot log in but their ticket history is preserved. To reactivate them, open **Editar** and set the **Estado** toggle back to active.
+
+## Deleting a user
+
+<Warning>
+  Deleting a user is permanent and cannot be undone. All authentication data for that account is removed. Proceed only if you are certain the account is no longer needed.
+</Warning>
+
+The delete action is separate from deactivation. Click the actions menu (**⋮**) on any user row and select **Eliminar**. A browser confirmation dialog asks you to confirm before proceeding. On confirmation, the panel calls:
+
+```
+DELETE /api/auth/users/:id
+```
+
+The user list reloads automatically after a successful deletion.
+
+<Tip>
+  Prefer deactivating a user over deleting them. Deactivation (`is_active: false`) preserves the account and ticket history while preventing login. Use **Desactivar** in the **Acciones** column for this.
+</Tip>

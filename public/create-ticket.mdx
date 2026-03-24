@@ -1,0 +1,165 @@
+---
+title: "Submitting a ticket"
+description: "How to submit a support ticket through the public portal"
+---
+
+You can submit a support ticket from the public portal at `/solicitud`. No account is required.
+
+<Warning>
+  Save your **ticket label** (e.g. `TK-2024-0001`) and the **email address** you submit with. You will need both to track your ticket later.
+</Warning>
+
+## Submission flow
+
+<Steps>
+  <Step title="Open the submission form">
+    Navigate to `/solicitud`. The form loads immediately — no login required.
+  </Step>
+  <Step title="Enter your contact details">
+    Fill in your **full name**, **email address**, and optionally your **phone number**, **ID document**, and **company or department**. The email address is the key used to look up your ticket later.
+  </Step>
+  <Step title="Classify your request">
+    Select a **ticket type** (for example, `SOLICITUD` or `INCIDENTE`) and enter a **category**. You can optionally add a **subcategory** and an **subject line**.
+  </Step>
+  <Step title="Describe the problem">
+    Write a detailed **description** of your issue (minimum 10 characters). The more detail you provide, the faster support can respond.
+  </Step>
+  <Step title="Submit the form">
+    Click **ENVIAR SOLICITUD**. The portal sends the request to the API and displays a confirmation with your ticket label and SLA deadline.
+  </Step>
+  <Step title="Note your ticket label">
+    The confirmation screen shows your **RADICADO NO.** — this is your ticket label. Copy it or take a screenshot before navigating away.
+  </Step>
+</Steps>
+
+## Form fields
+
+The following fields map to the `TicketCreatePayload` interface.
+
+<ParamField body="nombre" type="string" required>
+  Full name of the person submitting the ticket. Minimum 3 characters.
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Email address. Used to authenticate ticket lookups — you must provide the same email when tracking.
+</ParamField>
+
+<ParamField body="tipo" type="string" required>
+  Ticket type. One of: `PETICION`, `QUEJA`, `RECLAMO`, `SUGERENCIA`, `INCIDENTE`, `SOLICITUD`, `CONSULTA`. Determines the automatic priority assigned to the ticket.
+</ParamField>
+
+<ParamField body="categoria" type="string" required>
+  Category of the request (e.g. `Plataforma Académica`).
+</ParamField>
+
+<ParamField body="descripcion" type="string" required>
+  Detailed description of the problem or request. Minimum 10 characters.
+</ParamField>
+
+<ParamField body="prioridad" type="string" required>
+  Priority level: `BAJA`, `MEDIA`, `ALTA`, or `URGENTE`. Set automatically based on the selected `tipo`.
+</ParamField>
+
+<ParamField body="documento" type="string">
+  ID document number. Optional.
+</ParamField>
+
+<ParamField body="telefono" type="string">
+  Phone number. Optional. Maximum 30 characters.
+</ParamField>
+
+<ParamField body="tieneWhatsapp" type="boolean">
+  Whether the phone number supports WhatsApp. Defaults to `false`.
+</ParamField>
+
+<ParamField body="empresaDepartamento" type="string">
+  Company, faculty, or department. Optional. Maximum 150 characters.
+</ParamField>
+
+<ParamField body="subcategoria" type="string">
+  Subcategory for more specific classification. Optional.
+</ParamField>
+
+<ParamField body="asunto" type="string">
+  Brief subject line for the ticket. Optional. Maximum 200 characters.
+</ParamField>
+
+<ParamField body="areaAsignada" type="string">
+  Target area to route the ticket to. Optional. Defaults to `MESA`.
+</ParamField>
+
+## API endpoint
+
+```bash
+POST /api/tickets/crear
+```
+
+### Example request
+
+```typescript
+const payload: TicketCreatePayload = {
+  nombre: 'María García',
+  email: 'maria@example.com',
+  tipo: 'SOLICITUD',
+  categoria: 'Plataforma Académica',
+  descripcion: 'No puedo acceder a la plataforma de matrículas.',
+  prioridad: 'MEDIA',
+  tieneWhatsapp: false,
+};
+```
+
+## Response
+
+On success, the API returns a `TicketCreateResponse` object.
+
+<ResponseField name="ticketUuid" type="string" required>
+  Unique internal identifier (UUID) for the ticket. Used for direct API calls.
+</ResponseField>
+
+<ResponseField name="ticketLabel" type="string" required>
+  Human-readable ticket reference (e.g. `TK-2024-0001`). Save this to track your ticket.
+</ResponseField>
+
+<ResponseField name="estado" type="string" required>
+  Initial status of the ticket. Always `ABIERTO` on creation.
+</ResponseField>
+
+<ResponseField name="tipo" type="string" required>
+  The ticket type as submitted.
+</ResponseField>
+
+<ResponseField name="prioridad" type="string" required>
+  The priority assigned to the ticket.
+</ResponseField>
+
+<ResponseField name="slaHoras" type="number" required>
+  Number of hours within which the ticket should be resolved per SLA.
+</ResponseField>
+
+<ResponseField name="fechaCreacion" type="string" required>
+  ISO 8601 timestamp of when the ticket was created.
+</ResponseField>
+
+<ResponseField name="fechaLimiteSla" type="string" required>
+  ISO 8601 timestamp of the SLA deadline.
+</ResponseField>
+
+<ResponseField name="mensaje" type="string" required>
+  Confirmation message from the server.
+</ResponseField>
+
+### Example response
+
+```typescript
+const response: TicketCreateResponse = {
+  ticketUuid: '550e8400-e29b-41d4-a716-446655440000',
+  ticketLabel: 'TK-2024-0001',
+  estado: 'ABIERTO',
+  tipo: 'SOLICITUD',
+  prioridad: 'MEDIA',
+  slaHoras: 48,
+  fechaCreacion: '2024-03-15T10:00:00Z',
+  fechaLimiteSla: '2024-03-17T10:00:00Z',
+  mensaje: 'Ticket creado exitosamente',
+};
+```

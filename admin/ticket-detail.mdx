@@ -1,0 +1,124 @@
+---
+title: "Ticket detail"
+description: "Viewing and updating individual tickets in the admin panel"
+---
+
+The ticket detail page shows the full record for a single ticket and lets you update its state, respond to the requester, and perform lifecycle actions. You reach it at `/tickets/:id`.
+
+## Ticket information
+
+The page loads data from `GET /api/tickets/:id` and normalizes the raw response. The following fields are displayed:
+
+| Field | Description |
+|---|---|
+| `uuid` | Unique internal identifier |
+| `label` | Human-readable ticket reference (e.g., `TKT-00042`) shown in the page header |
+| `nombre` | Requester's full name (`solicitante_nombre`) |
+| `correo` | Requester's email address (`solicitante_email`) |
+| `telefono` | Requester's phone number; a WhatsApp link appears if `tiene_whatsapp` is `true` |
+| `asunto` | Ticket subject |
+| `categoria` | Request category |
+| `descripcion` | Full problem description (`descripcion_problema`) |
+| `estado_db` | Current status, shown as a colored pill in the header |
+| `prioridad_nom` | Current priority level |
+| `area_asignada` | Area the ticket is assigned to |
+| `creado_en` | Creation timestamp |
+| `actualizado_en` | Last update timestamp |
+| `fecha_limite_sla` | SLA deadline |
+| `sla_horas` | Number of SLA hours allocated |
+| `ip_registro` | IP address from which the ticket was submitted |
+| `documento` | Requester's ID document number |
+| `empresa_departamento` | Requester's company or department |
+
+## Update form
+
+The **Resolución y Respuesta Oficial** panel lets you update the ticket. It contains four fields:
+
+<ParamField body="estado" type="string" required>
+  New ticket status. One of: `ABIERTO`, `EN PROCESO`, `RESUELTO`, `CERRADO`.
+
+  The form uses `EN PROCESO` (space) as the send value, not `EN_PROCESO`. Legacy values `PENDIENTE` and `EN_PROCESO` (with underscore) from the API response are automatically mapped to `ABIERTO` and `EN PROCESO` respectively when the form loads.
+</ParamField>
+
+<ParamField body="prioridad" type="string" required>
+  Ticket priority. One of: `URGENTE`, `ALTA`, `MEDIA`, `BAJA`.
+</ParamField>
+
+<ParamField body="area" type="string" required>
+  Responsible area. One of: `SISTEMAS`, `SOPORTE TÉCNICO`, `REDES`, `INFRAESTRUCTURA`, `DESARROLLO`, `MESA DE AYUDA`.
+</ParamField>
+
+<ParamField body="respuesta" type="string" required>
+  Official response or resolution note. Must be between **5 and 5000 characters**. This text is recorded in the ticket history.
+</ParamField>
+
+### Saving changes
+
+<Steps>
+  <Step title="Edit the form fields">
+    Change `estado`, `prioridad`, `area`, or write a response in the `respuesta` text area.
+  </Step>
+
+  <Step title="Verify the Save button is enabled">
+    The **ACTUALIZAR TICKET** button becomes active only when both conditions are true:
+    - The form is valid (all required fields filled, `respuesta` within length limits).
+    - The form is dirty (at least one field differs from the loaded ticket data).
+  </Step>
+
+  <Step title="Click ACTUALIZAR TICKET">
+    The form submits the following payload:
+
+    ```
+    POST /api/tickets/:id/actualizar
+    {
+      "estado": "RESUELTO",
+      "prioridad": "MEDIA",
+      "area": "SISTEMAS",
+      "respuesta": "Se resolvió el problema reinstalando el controlador."
+    }
+    ```
+  </Step>
+
+  <Step title="Confirmation">
+    On success, a snack bar shows the server's confirmation message and the page reloads with the updated ticket data.
+  </Step>
+</Steps>
+
+## Ticket actions
+
+In addition to the standard update form, the following lifecycle actions are available via `TicketsService`. Use these when you need to change the ticket's state beyond a simple status update.
+
+| Action | Endpoint | Required parameters |
+|---|---|---|
+| **Assign** | `POST /api/tickets/:id/asignar` | `agenteId` (string), `motivo` (string) |
+| **Transfer** | `POST /api/tickets/:id/transferir` | `nuevaArea` (string), `agenteId` (string), `motivo` (string) |
+| **Reclassify** | `POST /api/tickets/:id/reclasificar` | `nuevaPrioridad` (string), `nuevaCategoria` (string), `motivo` (string) |
+| **Pause** | `POST /api/tickets/:id/pausar` | `motivo` (string) |
+| **Reopen** | `POST /api/tickets/:id/reabrir` | `motivo` (string) |
+| **Cancel** | `POST /api/tickets/:id/cancelar` | `motivo` (string), `rol` (`USUARIO` or `AGENTE`) |
+| **Archive** | `POST /api/tickets/:id/archivar` | `motivo` (string) |
+
+### Action descriptions
+
+- **Assign** — routes the ticket to a specific agent and records the reason in the history.
+- **Transfer** — moves the ticket to a different area and optionally reassigns it to an agent in that area.
+- **Reclassify** — changes the ticket's priority and category without altering its status.
+- **Pause** — puts the ticket on hold with a mandatory reason; useful when waiting for the requester to provide more information.
+- **Reopen** — returns a closed ticket to an active state.
+- **Cancel** — cancels the ticket; the `rol` parameter distinguishes whether a user or an agent initiated the cancellation.
+- **Archive** — moves the ticket to the archive with a reason note.
+
+## Activity history
+
+The **Historial de Actividad** panel on the right side of the page shows a chronological timeline of all changes made to the ticket. Each history entry (`h`) includes:
+
+| Field | Description |
+|---|---|
+| `h.actor_nombre` | Name of the user who performed the action |
+| `h.fecha` | Timestamp of the action |
+| `h.accion` | Action label (e.g., `ACTUALIZACIÓN`, `TRANSFERENCIA`) |
+| `h.estado_antes` / `h.estado_despues` | Status before and after the change |
+| `h.area_antes` / `h.area_despues` | Area before and after a transfer |
+| `h.comentario` / `h.respuesta` | Any note or response text added at the time of the action |
+
+The timeline renders entries in the order they are returned by the API, with the most recent action at the bottom.

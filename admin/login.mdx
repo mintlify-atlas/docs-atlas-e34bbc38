@@ -1,0 +1,159 @@
+---
+title: 'Admin login'
+description: 'Authenticating as an admin or agent in the helpdesk admin panel'
+---
+
+The admin panel uses JWT-based authentication. You submit your credentials to the API, receive a token, and the panel stores that token locally so subsequent requests are automatically authorized.
+
+## Login route
+
+The login page is served at `/login`. Unauthenticated users are redirected here automatically by the `authGuard`.
+
+## Authentication flow
+
+<Steps>
+  <Step title="Open the login page">
+    Navigate to `/login`. If you are already authenticated, `loginGuard` redirects you to `/dashboard` (or the `returnUrl` query parameter if one is present).
+  </Step>
+
+  <Step title="Submit your credentials">
+    Enter your email address and password in the **Login** form and click **Entrar al Sistema**.
+
+    The panel sends a `POST` request to `/api/auth/login`:
+
+    ```http
+    POST /api/auth/login
+    Content-Type: application/json
+
+    {
+      "email": "admin@helpdesk.com",
+      "password": "Admin123"
+    }
+    ```
+
+    The request body matches the `LoginPayload` interface:
+
+    ```typescript
+    export interface LoginPayload {
+      email: string;
+      password: string;
+    }
+    ```
+  </Step>
+
+  <Step title="Receive the JWT response">
+    On success the API returns a `LoginResponse` object:
+
+    ```typescript
+    export interface LoginResponse {
+      access_token: string;
+      token_type: string; // 'bearer'
+      user: AuthUser;
+    }
+    ```
+
+    The `user` field is an `AuthUser`:
+
+    ```typescript
+    export interface AuthUser {
+      id: string;
+      email: string;
+      nombre: string;
+      rol: UserRole; // 'ADMIN' | 'MESA' | 'AREA' | 'USUARIO'
+      area?: string | null;
+    }
+    ```
+  </Step>
+
+  <Step title="Role validation">
+    Before storing anything, the panel checks that `user.rol` is one of the four allowed values: `ADMIN`, `MESA`, `AREA`, or `USUARIO`. If the role is missing or unrecognised, the login is rejected and `logout()` clears any partial state.
+
+    ```typescript
+    const allowedRoles = ['ADMIN', 'MESA', 'AREA', 'USUARIO'];
+    if (!allowedRoles.includes(userRole)) {
+      this.logout();
+      return false;
+    }
+    ```
+  </Step>
+
+  <Step title="Token and user stored locally">
+    After a successful role check, the panel writes two entries to `localStorage`:
+
+    | Key | Value |
+    |---|---|
+    | `admin_token` | The raw JWT string from `access_token` |
+    | `admin_user` | JSON-serialised `AuthUser` object |
+
+    ```typescript
+    localStorage.setItem('admin_token', resp.access_token);
+    localStorage.setItem('admin_user', JSON.stringify(resp.user));
+    ```
+  </Step>
+
+  <Step title="Redirect to the dashboard">
+    Once storage is complete, the panel navigates you to `returnUrl` (if provided in the query string) or falls back to `/dashboard`.
+  </Step>
+</Steps>
+
+<Note>
+  The token is stored in `localStorage`, not in a cookie. This means it persists across page refreshes and browser restarts until you explicitly log out.
+</Note>
+
+## Route guards
+
+### `authGuard`
+
+All routes under the main layout are protected by `authGuard`. It checks `localStorage` for `admin_token`. If no token is found, it redirects to `/login` and appends the originally requested URL as a `returnUrl` query parameter:
+
+```typescript
+if (auth.isLoggedIn()) {
+  return true;
+}
+
+return router.createUrlTree(['/login'], {
+  queryParams: { returnUrl: state.url }
+});
+```
+
+### `loginGuard`
+
+The `/login` route is protected by `loginGuard`. If you are already logged in, it redirects you away from the login page—either to the `returnUrl` query parameter or to `/dashboard`:
+
+```typescript
+if (!auth.isLoggedIn()) {
+  return true;
+}
+
+const returnUrl = route.queryParamMap.get('returnUrl') || '/dashboard';
+return router.createUrlTree([returnUrl]);
+```
+
+This prevents authenticated users from seeing the login screen.
+
+## HTTP interceptor
+
+The `authInterceptor` runs on every outgoing HTTP request. It reads `admin_token` from `localStorage` and attaches it as an `Authorization` header:
+
+```typescript
+const authReq = req.clone({
+  setHeaders: {
+    Authorization: `Bearer ${token}`
+  }
+});
+```
+
+Requests to `/api/auth/login` are excluded — the login endpoint does not require a token.
+
+## Logging out
+
+<Warning>
+  Calling `logout()` removes both `admin_token` and `admin_user` from `localStorage`. The token is permanently lost and you will need to log in again to obtain a new one.
+</Warning>
+
+```typescript
+logout(): void {
+  localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin_user');
+}
+```

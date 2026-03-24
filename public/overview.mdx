@@ -1,0 +1,59 @@
+---
+title: "Public portal overview"
+description: "The customer-facing portal for submitting and tracking support tickets"
+---
+
+The public portal is the customer-facing side of Front Helpdesk. Anyone can submit a support ticket or check the status of an existing one — no account or login required.
+
+<Note>
+  The public portal runs with Angular Universal Server-Side Rendering (SSR) enabled, so pages load quickly even on first visit.
+</Note>
+
+## Two main features
+
+<CardGroup cols={2}>
+  <Card title="Submit a ticket" icon="ticket" href="/public/create-ticket">
+    Fill out a form to register a new support request. You receive a ticket label you can use to track progress.
+  </Card>
+  <Card title="Track a ticket" icon="magnifying-glass" href="/public/track-ticket">
+    Look up an existing ticket using your ticket label and the email address you submitted with.
+  </Card>
+</CardGroup>
+
+## URL routes
+
+| Route | Feature |
+|---|---|
+| `/solicitud` | Submit a new ticket |
+| `/consulta` | Track an existing ticket |
+
+The root path (`/`) redirects to `/solicitud` automatically.
+
+## Ticket types
+
+When submitting a ticket, you select one of the following types:
+
+| Value | Meaning |
+|---|---|
+| `PETICION` | General request |
+| `QUEJA` | Complaint |
+| `RECLAMO` | Formal claim |
+| `SUGERENCIA` | Suggestion |
+| `INCIDENTE` | Incident or outage |
+| `SOLICITUD` | Service request |
+| `CONSULTA` | Inquiry |
+
+## Priority levels
+
+Each ticket is assigned a priority. In the public portal, priority is set automatically based on the ticket type:
+
+| Priority | Assigned for |
+|---|---|
+| `BAJA` | PETICION, SUGERENCIA, CONSULTA |
+| `MEDIA` | QUEJA, SOLICITUD |
+| `ALTA` | RECLAMO |
+| `URGENTE` | INCIDENTE |
+
+## SLA system
+
+Every ticket receives an SLA (Service Level Agreement) deadline calculated automatically at submission time. The deadline is based on the ticket's priority and tells support staff how many hours they have to resolve it. You can see the SLA deadline when you track your ticket.

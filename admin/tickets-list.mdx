@@ -1,0 +1,85 @@
+---
+title: "Tickets list"
+description: "Viewing, filtering, and navigating the admin tickets list"
+---
+
+The tickets list is your central hub for monitoring and managing all support tickets. You reach it at the `/tickets` route and it is labelled **Consola de Gestión** in the header.
+
+## Data source
+
+The list fetches all tickets from:
+
+```
+GET /api/tickets/dashboard
+```
+
+The component maps the raw API response to an internal `TicketMDA` model. The list reloads automatically after any archive operation.
+
+## Table columns
+
+Each row in the table represents one ticket. The following columns are shown:
+
+| Column | Field | Description |
+|---|---|---|
+| **Referencia** | `label` | Human-readable ticket ID (e.g., `TKT-00042`) with an SLA status dot |
+| **Tipo Caso / Solicitante** | `categoria` / `correo` | Category on top, requester email below |
+| **Prioridad** | `prioridad` | Color-coded badge: ALTA, MEDIA, or BAJA |
+| **Estado** | `estado` | Current status code (e.g., `EN_PROCESO`, `RESUELTO`) |
+| **Asignación** | `area` | The area the ticket is assigned to |
+| **Último Mov.** | `actualizadoEn` | Date and time of the last change, formatted `dd/MM/yy HH:mm:ss` |
+| **Acciones** | — | **Gestionar** (open detail) and **Archivar** (archive) buttons |
+
+### SLA status dot
+
+Every row in the **Referencia** column shows a colored dot next to the ticket label:
+
+| Color | Condition |
+|---|---|
+| Red (`urgent`) | `vencido: true` — SLA has already expired |
+| Red (`urgent`) | `horasRestantes ≤ 2` — fewer than 2 hours remaining |
+| Yellow (`warning`) | `horasRestantes ≤ 8` — between 2 and 8 hours remaining |
+| Green (`ok`) | More than 8 hours remaining |
+
+Hovering over the dot shows a tooltip: **TICKET VENCIDO** for expired tickets, or `Xh restantes` for active ones.
+
+<Tip>
+  Use the **Estado** filter and select a status combined with the SLA dot color to quickly surface overdue tickets. You can also filter by `SLA vencido` visually — any row showing a red dot and status other than `RESUELTO` or `CERRADO` needs immediate attention.
+</Tip>
+
+## Filtering and search
+
+The toolbar above the table provides five independent filters. All filters apply simultaneously and update the list in real time as you type or change a selection.
+
+| Filter | Input type | Matches against |
+|---|---|---|
+| **ID** | Text input | Ticket label or UUID (case-insensitive, partial match) |
+| **Search** | Text input | Requester email (`correo`) or category (`categoria`) |
+| **Estado** | Dropdown | Ticket status; options: `TODOS`, `PENDIENTE`, `EN_PROCESO`, `RESUELTO`, `ARCHIVADO` |
+| **Prioridad** | Dropdown | Priority; options: `TODAS`, `ALTA`, `MEDIA`, `BAJA` |
+| **Área** | Dropdown | Assigned area; options: Todas, Sistemas, Soporte técnico, Redes, Infraestructura, Desarrollo, Mesa de ayuda |
+
+Click the **Limpiar filtros** button (filter icon) to reset all filters at once.
+
+### Role-based filtering
+
+If your account has the `AREA` role, the **Área** filter is pre-set to your area and is disabled — you can only see tickets assigned to your area. Users with the `ADMIN` or `MESA` role can see and filter across all areas.
+
+## Opening a ticket
+
+Click the **Gestionar** button (settings icon) on any row to navigate to the ticket detail page at `/tickets/:id`. You must have permission to access the ticket:
+
+- `ADMIN` and `MESA` roles can open any ticket.
+- `AREA` role users can only open tickets assigned to their area.
+
+If you try to open a ticket you don't have access to, a snack bar notification informs you.
+
+## Archiving a ticket
+
+Click the **Archivar** button (box icon) on a row to archive it directly from the list. The action sends:
+
+```
+POST /api/tickets/:id/archivar
+{ "motivo": "Archivado desde la consola de gestión" }
+```
+
+The list reloads automatically after a successful archive. The same role-based access rules apply — you can only archive tickets within your area.

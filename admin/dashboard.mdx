@@ -1,0 +1,113 @@
+---
+title: "Dashboard"
+description: "Real-time KPI analytics and ticket volume charts for the admin panel"
+---
+
+The **Dashboard** gives you an at-a-glance view of your helpdesk's current health. It loads automatically when you open the admin panel and aggregates all ticket data into KPI cards, trend indicators, and a set of charts.
+
+<Note>
+  The dashboard fetches data automatically on page load via `GET /api/tickets/dashboard-metricas`. Use the **Refresh** button in the toolbar to reload metrics at any time without leaving the page.
+</Note>
+
+## KPI cards
+
+Four cards sit at the top of the page. Each card updates every time the dashboard data reloads.
+
+<CardGroup cols={2}>
+  <Card title="Tickets Hoy" icon="confirmation_number">
+    Count of tickets whose `creado_en` timestamp falls on the current calendar day. Resets at midnight local time.
+  </Card>
+
+  <Card title="Tiempo Promedio" icon="hourglass_empty">
+    Average number of hours elapsed since each ticket was created, calculated across **all** tickets returned by the API. Displayed as `Xh` (e.g., `4.3h`).
+  </Card>
+
+  <Card title="Críticos" icon="report_problem">
+    Count of tickets that are either `CRITICA` priority, `ALTA` priority, **or** have an expired SLA (`sla_vencido: true`). A ticket may satisfy more than one condition and is still counted once.
+  </Card>
+
+  <Card title="SLA Vencidos" icon="alarm_on">
+    Count of tickets where `sla_vencido` is `true`, meaning the ticket has already passed its SLA deadline (`fecha_limite_sla`).
+  </Card>
+</CardGroup>
+
+## Trend indicator
+
+Below the KPI cards you will see a **trend percentage** (`trendPercent`). This compares the total tickets created in the **last 7 days** against the **previous 7 days** (days 8–14 ago).
+
+- A positive value (e.g., `+12%`) means ticket volume increased compared to the prior period.
+- A negative value (e.g., `-5%`) means ticket volume decreased.
+- If the previous period had zero tickets, the trend shows `100%` when there are current tickets, or `0%` when both periods are empty.
+
+## Charts
+
+All charts render after the data loads. The dashboard displays seven charts:
+
+| Chart | Type | Description |
+|---|---|---|
+| **Tendencia de Tickets** | Line | Tickets created per day over the last 7 days, labeled by weekday abbreviation |
+| **Prioridad** | Doughnut | Distribution of all tickets across Crítica / Alta / Media / Baja priority levels |
+| **Estado de tickets** | Doughnut | Top 5 ticket statuses by volume |
+| **Salud de SLA** | Doughnut | Breakdown into Vigentes (active), Por vencer (≤4 hours remaining), and Vencidos (expired) |
+| **Tickets por Departamento** | Horizontal bar | Top 8 areas by ticket count (`area_asignada`) |
+| **Categorías Populares** | Vertical bar | Top 6 categories by ticket count (`categoria`) |
+| **Volumen por Hora** | Vertical bar | Ticket creation volume for each hour of the day (00:00–23:00) |
+
+### Line chart — ticket trend
+
+The x-axis shows the abbreviated weekday name for each of the last 7 days. The y-axis shows the number of tickets created on that day. The filled area below the line uses a light blue fill to make volume changes easy to spot.
+
+### Doughnut charts
+
+- **Priority** uses fixed colors: red (Crítica), orange (Alta), blue (Media), slate (Baja).
+- **Status** shows the top 5 statuses sorted by count descending.
+- **SLA health** uses green (Vigentes), orange (Por vencer), red (Vencidos). Tickets with `horas_restantes_sla ≤ 4` and `sla_vencido: false` are classified as *Por vencer*.
+
+### Bar charts
+
+- **By department** — horizontal bars, top 8 areas, sorted descending.
+- **By category** — vertical bars, top 6 categories, sorted descending.
+- **By hour** — vertical bars spanning hours 0–23, showing how ticket volume distributes throughout the day.
+
+## Top requesters panel
+
+The **Top Solicitantes** panel lists the 5 users who submitted the most tickets. For each person you see:
+
+- An avatar showing their initials (first letter of first and last name).
+- Their full name (`solicitante_nombre`).
+- Their total ticket count.
+
+This panel is useful for identifying users who frequently contact support, which may indicate training opportunities or recurring issues.
+
+## Data source
+
+All dashboard data comes from a single endpoint:
+
+```
+GET /api/tickets/dashboard-metricas
+```
+
+The response is an array of ticket objects. The component processes that array client-side to derive all KPIs, chart datasets, and the top requesters list. No secondary API calls are made.
+
+Each ticket object in the response conforms to the following structure:
+
+```typescript
+interface TicketApi {
+  uuid: string;
+  ticket_label: string;
+  solicitante_nombre: string;
+  solicitante_email: string;
+  tipo_solicitud: string;
+  categoria: string;
+  subcategoria: string;
+  asunto: string;
+  area_asignada: string;
+  prioridad: string;           // CRITICA | ALTA | MEDIA | BAJA
+  sla_horas: number;
+  estado: string;
+  creado_en: string;           // ISO 8601 datetime
+  fecha_limite_sla: string;    // ISO 8601 datetime
+  horas_restantes_sla: number;
+  sla_vencido: boolean;
+}
+```

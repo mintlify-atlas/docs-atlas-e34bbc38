@@ -1,0 +1,145 @@
+---
+title: "Tracking a ticket"
+description: "How to check the status and history of a submitted ticket"
+---
+
+You can check the status of any ticket you have submitted without logging in. All you need is the **ticket label** and the **email address** you used when submitting.
+
+<Tip>
+  When you submit a ticket, save the confirmation screen or note the ticket label (e.g. `TK-2024-0001`) and your email. You will need both to look up your ticket later.
+</Tip>
+
+## Lookup flow
+
+<Steps>
+  <Step title="Open the tracking page">
+    Navigate to `/consulta`. The search form appears immediately — no login required.
+  </Step>
+  <Step title="Enter your ticket label">
+    Type your **N° Radicado** in the first field. The format is `TK-YYYY-NNNN`, for example `TK-2024-0001`.
+  </Step>
+  <Step title="Enter your email address">
+    Type the **email address** you used when you submitted the ticket. This verifies that you are the original submitter.
+  </Step>
+  <Step title="Click BUSCAR TICKET">
+    The portal sends a lookup request to the API. If the label and email match, the ticket details are displayed below the form.
+  </Step>
+  <Step title="Review your ticket details">
+    The results show the current status, classification, description, assigned area, and SLA deadline for your ticket.
+  </Step>
+</Steps>
+
+## Lookup fields
+
+The lookup maps to the `TicketConsultaPayload` interface.
+
+<ParamField body="label" type="string" required>
+  The ticket label shown on the confirmation screen after submission (e.g. `TK-2024-0001`).
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  The email address provided when the ticket was submitted.
+</ParamField>
+
+## API endpoint
+
+```bash
+POST /api/tickets/consultar
+```
+
+### Example request
+
+```typescript
+const payload: TicketConsultaPayload = {
+  label: 'TK-2024-0001',
+  email: 'maria@example.com',
+};
+```
+
+## Response
+
+On success, the API returns a `TicketConsultaPublica` object.
+
+<ResponseField name="uuid" type="string" required>
+  Unique internal identifier for the ticket.
+</ResponseField>
+
+<ResponseField name="ticket_label" type="string" required>
+  Human-readable ticket reference, e.g. `TK-2024-0001`.
+</ResponseField>
+
+<ResponseField name="tipo_solicitud" type="string">
+  The ticket type, e.g. `SOLICITUD` or `INCIDENTE`.
+</ResponseField>
+
+<ResponseField name="categoria" type="string">
+  The category assigned to the ticket.
+</ResponseField>
+
+<ResponseField name="subcategoria" type="string">
+  The subcategory, if one was assigned.
+</ResponseField>
+
+<ResponseField name="asunto" type="string">
+  The subject line of the ticket.
+</ResponseField>
+
+<ResponseField name="descripcion_problema" type="string">
+  The full problem description as submitted.
+</ResponseField>
+
+<ResponseField name="area_asignada" type="string">
+  The support area currently handling the ticket.
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Current ticket status. See the status reference below.
+</ResponseField>
+
+<ResponseField name="prioridad" type="string">
+  Current priority level: `BAJA`, `MEDIA`, `ALTA`, or `URGENTE`.
+</ResponseField>
+
+<ResponseField name="sla_horas" type="number">
+  Number of hours allocated for resolution under the SLA.
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  ISO 8601 timestamp of when the ticket was created.
+</ResponseField>
+
+<ResponseField name="fecha_limite_sla" type="string">
+  ISO 8601 timestamp of the SLA deadline.
+</ResponseField>
+
+### Example response
+
+```typescript
+const ticket: TicketConsultaPublica = {
+  uuid: '550e8400-e29b-41d4-a716-446655440000',
+  ticket_label: 'TK-2024-0001',
+  tipo_solicitud: 'SOLICITUD',
+  categoria: 'Plataforma Académica',
+  asunto: 'No puedo acceder a la plataforma de matrículas',
+  descripcion_problema: 'No puedo acceder a la plataforma de matrículas.',
+  area_asignada: 'MESA',
+  estado: 'EN_PROCESO',
+  prioridad: 'MEDIA',
+  sla_horas: 48,
+  creado_en: '2024-03-15T10:00:00Z',
+  fecha_limite_sla: '2024-03-17T10:00:00Z',
+};
+```
+
+## Ticket statuses
+
+The `estado` field can hold any of the following values:
+
+| Status | Meaning |
+|---|---|
+| `ABIERTO` | Ticket received and waiting to be worked on |
+| `EN_PROCESO` | A support agent is actively working on it |
+| `PAUSADO` | Work is temporarily suspended |
+| `RESUELTO` | The issue has been resolved |
+| `CANCELADO` | The ticket was cancelled before resolution |
+| `CERRADO` | The ticket is closed and archived |

@@ -1,0 +1,91 @@
+{
+  "projectType": "saas",
+  "projectName": "Front Helpdesk",
+  "projectDescription": "An Angular-based helpdesk SaaS application with a public ticket portal and a role-based admin panel featuring dashboards, ticket management, SLA tracking, and user administration.",
+  "theme": "linden",
+  "primaryColor": "#2563eb",
+  "lightColor": "#eff6ff",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Overview",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "getting-started/quickstart", "getting-started/architecture"]
+          },
+          {
+            "group": "Configuration",
+            "pages": ["configuration/environment", "configuration/api-backend"]
+          }
+        ]
+      },
+      {
+        "tab": "Public Portal",
+        "groups": [
+          {
+            "group": "User Guide",
+            "pages": ["public/overview", "public/create-ticket", "public/track-ticket"]
+          }
+        ]
+      },
+      {
+        "tab": "Admin Panel",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": ["admin/login", "admin/roles-permissions"]
+          },
+          {
+            "group": "Features",
+            "pages": ["admin/dashboard", "admin/tickets-list", "admin/ticket-detail", "admin/users-management"]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Data Models",
+            "pages": ["reference/ticket-model", "reference/user-model", "reference/ticket-statuses"]
+          },
+          {
+            "group": "Services",
+            "pages": ["reference/tickets-service", "reference/users-service", "reference/auth-service"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Public ticket submission portal with SLA-based priority routing",
+    "Ticket status tracking by label and email (no account required)",
+    "Admin dashboard with KPI cards, trend charts, and SLA monitoring",
+    "Full ticket lifecycle management: assign, transfer, reclassify, pause, reopen, cancel, archive",
+    "Role-based access control with four roles: ADMIN, MESA, AREA, USUARIO",
+    "User management for creating, updating, and deactivating agent accounts",
+    "Server-Side Rendering (SSR) via Angular Universal for both public and admin apps",
+    "Integrated Chart.js visualizations for priority, status, area, category, and hourly distributions"
+  ],
+  "publicApiSurface": [
+    "POST /api/tickets/crear — Submit a new ticket",
+    "POST /api/tickets/consultar — Track a ticket by label and email",
+    "GET /api/tickets/dashboard — Fetch all tickets for admin dashboard",
+    "GET /api/tickets/dashboard-metricas — Fetch aggregated metrics",
+    "GET /api/tickets/:id — Get ticket detail with history",
+    "POST /api/tickets/:id/actualizar — Update ticket status, priority, area, and response",
+    "POST /api/tickets/:id/asignar — Assign ticket to an agent",
+    "POST /api/tickets/:id/transferir — Transfer ticket to another area",
+    "POST /api/tickets/:id/reclasificar — Reclassify ticket priority and category",
+    "POST /api/tickets/:id/pausar — Pause a ticket",
+    "POST /api/tickets/:id/reabrir — Reopen a ticket",
+    "POST /api/tickets/:id/cancelar — Cancel a ticket",
+    "POST /api/tickets/:id/archivar — Archive a ticket",
+    "POST /api/auth/login — Admin login",
+    "GET /api/auth/users — List all users",
+    "POST /api/auth/users — Create a new user",
+    "PATCH /api/auth/users/:id — Update a user",
+    "DELETE /api/auth/users/:id — Delete a user"
+  ]
+}

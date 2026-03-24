@@ -1,0 +1,352 @@
+---
+title: "AuthService"
+description: "Authentication service for the admin panel — login, token storage, and logout"
+---
+
+`AuthService` handles login, JWT storage, and session state for the admin panel. It lives at `projects/admin/src/app/core/auth/auth.service.ts` and is injectable at the root level.
+
+The same `core/auth/` directory also exports two route guards and an HTTP interceptor:
+
+- `authGuard` — protects routes that require a logged-in session
+- `loginGuard` — prevents authenticated users from reaching the login page
+- `authInterceptor` — attaches the Bearer token to all outgoing HTTP requests
+
+<Note>
+  All methods that read from or write to `localStorage` first check `isPlatformBrowser(platformId)`. This makes the service safe to use in SSR (server-side rendering) environments, where `localStorage` is not available.
+</Note>
+
+## Source
+
+```typescript
+import { Injectable, inject, PLATFORM_ID } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
+import { catchError, map, of } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private http = inject(HttpClient);
+  private platformId = inject(PLATFORM_ID);
+  private base = environment.apiBase;
+
+  private readonly TOKEN_KEY = 'admin_token';
+  private readonly USER_KEY = 'admin_user';
+
+  private isBrowser(): boolean {
+    return isPlatformBrowser(this.platformId);
+  }
+
+  login(email: string, password: string) {
+    return this.http.post<any>(`${this.base}/api/auth/login`, { email, password }).pipe(
+      map((resp) => {
+        if (!resp?.access_token || !resp?.user) {
+          this.logout();
+          return false;
+        }
+
+        const userRole = (resp.user.rol || '').trim().toUpperCase();
+        const allowedRoles = ['ADMIN', 'MESA', 'AREA', 'USUARIO'];
+
+        if (!allowedRoles.includes(userRole)) {
+          this.logout();
+          return false;
+        }
+
+        if (this.isBrowser()) {
+          localStorage.setItem(this.TOKEN_KEY, resp.access_token);
+          localStorage.setItem(this.USER_KEY, JSON.stringify(resp.user));
+        }
+
+        return true;
+      }),
+      catchError((error) => {
+        console.error('ERROR LOGIN:', error);
+        this.logout();
+        return of(false);
+      })
+    );
+  }
+
+  getToken(): string | null {
+    if (!this.isBrowser()) return null;
+    return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  getUser(): any | null {
+    if (!this.isBrowser()) return null;
+
+    const raw = localStorage.getItem(this.USER_KEY);
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  isLoggedIn(): boolean {
+    if (!this.isBrowser()) return false;
+    return !!localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  logout(): void {
+    if (!this.isBrowser()) return;
+    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.USER_KEY);
+  }
+}
+```
+
+## Methods
+
+### `login`
+
+```typescript
+login(email: string, password: string): Observable<boolean>
+```
+
+Sends credentials to the login endpoint and stores the returned token and user on success.
+
+**HTTP:** `POST /api/auth/login`
+
+**Parameters**
+
+<ParamField body="email" type="string" required>
+  The user's registered email address.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The user's password.
+</ParamField>
+
+**Returns:** `Observable<boolean>` — emits `true` if login succeeded and the user's role is allowed; emits `false` in all other cases, including network errors.
+
+**Behavior:**
+
+1. Calls `POST /api/auth/login` with the provided credentials.
+2. If the response contains an `access_token` and a `user`, validates that `user.rol` is one of `ADMIN`, `MESA`, `AREA`, or `USUARIO`.
+3. On success, writes the token under `admin_token` and the user object under `admin_user` in `localStorage`.
+4. Returns `false` — and calls `logout()` to clear any stale storage — if the response is missing fields, the role is not allowed, or the request fails.
+
+<Tip>
+  Subscribe to the result and redirect to the dashboard only when the emitted value is `true`.
+</Tip>
+
+**Usage example**
+
+```typescript
+this.authService.login(email, password).subscribe({
+  next: (success) => {
+    if (success) {
+      this.router.navigate(['/dashboard']);
+    } else {
+      this.errorMessage = 'Credenciales inválidas o acceso no permitido.';
+    }
+  },
+  error: () => {
+    this.errorMessage = 'Error de conexión. Intente de nuevo.';
+  },
+});
+```
+
+---
+
+### `getToken`
+
+```typescript
+getToken(): string | null
+```
+
+Returns the stored JWT from `localStorage`.
+
+**Parameters:** None.
+
+**Returns:** The JWT string, or `null` if no token is stored or the method is called in a non-browser environment.
+
+---
+
+### `getUser`
+
+```typescript
+getUser(): AuthUser | null
+```
+
+Returns the stored user object from `localStorage`.
+
+**Parameters:** None.
+
+**Returns:** The parsed `AuthUser` object, or `null` if no user is stored, the stored value is not valid JSON, or the method is called in a non-browser environment. See [AuthUser](/reference/user-model#authuser-interface) for field details.
+
+---
+
+### `isLoggedIn`
+
+```typescript
+isLoggedIn(): boolean
+```
+
+Checks whether a token exists in `localStorage`.
+
+**Parameters:** None.
+
+**Returns:** `true` if `admin_token` is present in `localStorage`; `false` otherwise, including in SSR environments.
+
+<Note>
+  This check is presence-only — it does not validate the token's signature or expiry. Token validation happens on the server when requests are made.
+</Note>
+
+---
+
+### `logout`
+
+```typescript
+logout(): void
+```
+
+Clears the stored token and user from `localStorage`, ending the session.
+
+**Parameters:** None.
+
+**Returns:** `void`
+
+Removes both `admin_token` and `admin_user` from `localStorage`. Has no effect in non-browser environments.
+
+---
+
+## `authInterceptor`
+
+The `authInterceptor` is an Angular `HttpInterceptorFn` defined in `auth.interceptor.ts`. Register it in your application's `provideHttpClient` configuration to automatically attach the Bearer token to outgoing requests.
+
+```typescript
+import { HttpInterceptorFn } from '@angular/common/http';
+import { inject } from '@angular/core';
+import { AuthService } from './auth.service';
+
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const auth = inject(AuthService);
+  const token = auth.getToken();
+
+  // Do not attach a token to login requests.
+  if (!token || req.url.includes('/api/auth/login')) {
+    return next(req);
+  }
+
+  const authReq = req.clone({
+    setHeaders: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  return next(authReq);
+};
+```
+
+**How it works:**
+
+1. Calls `auth.getToken()` to read the JWT from `localStorage`.
+2. Skips token injection if no token is present or if the request targets the login endpoint (`/api/auth/login`), avoiding circular issues during authentication.
+3. Clones the original request and sets the `Authorization: Bearer <token>` header.
+4. Passes the cloned request to the next handler in the chain.
+
+**Registration example**
+
+```typescript
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { authInterceptor } from './core/auth/auth.interceptor';
+
+export const appConfig = {
+  providers: [
+    provideHttpClient(withInterceptors([authInterceptor])),
+  ],
+};
+```
+
+---
+
+## `authGuard`
+
+The `authGuard` is an Angular `CanActivateFn` defined in `auth-guard.ts`. Apply it to any route that requires an authenticated session.
+
+```typescript
+import { inject } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { AuthService } from './auth.service';
+
+export const authGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (auth.isLoggedIn()) {
+    return true;
+  }
+
+  return router.createUrlTree(['/login'], {
+    queryParams: { returnUrl: state.url }
+  });
+};
+```
+
+**How it works:**
+
+- Calls `auth.isLoggedIn()` to check for a stored token.
+- If a token is present, allows navigation to proceed.
+- If no token is found, redirects to `/login` and appends the originally requested URL as a `returnUrl` query parameter, so the user is sent back after a successful login.
+
+**Usage example**
+
+```typescript
+import { authGuard } from './core/auth/auth-guard';
+
+const routes = [
+  {
+    path: 'dashboard',
+    component: DashboardComponent,
+    canActivate: [authGuard],
+  },
+];
+```
+
+---
+
+## `loginGuard`
+
+The `loginGuard` is an Angular `CanActivateFn` defined in `login-guard.ts`. Apply it to the login route to prevent authenticated users from seeing the login page.
+
+```typescript
+import { inject } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { AuthService } from './auth.service';
+
+export const loginGuard: CanActivateFn = (route) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (!auth.isLoggedIn()) {
+    return true;
+  }
+
+  const returnUrl = route.queryParamMap.get('returnUrl') || '/dashboard';
+  return router.createUrlTree([returnUrl]);
+};
+```
+
+**How it works:**
+
+- If the user is **not** logged in, allows navigation to the login page.
+- If the user **is** already logged in, redirects them to the `returnUrl` query parameter if present, or to `/dashboard` as a fallback.
+
+**Usage example**
+
+```typescript
+import { loginGuard } from './core/auth/login-guard';
+
+const routes = [
+  {
+    path: 'login',
+    component: LoginComponent,
+    canActivate: [loginGuard],
+  },
+];
+```

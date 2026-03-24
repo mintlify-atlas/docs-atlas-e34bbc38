@@ -1,0 +1,220 @@
+---
+title: "UsersService"
+description: "Angular service for user account management API calls"
+---
+
+`UsersService` is part of the shared library (`projects/shared/src/lib/users.service.ts`) and is injectable at the root level — you do not need to add it to any module's `providers` array.
+
+All endpoints require an authenticated session. The `authInterceptor` automatically attaches the Bearer token to every request. See [AuthService](/reference/auth-service) for details.
+
+## Method summary
+
+| Method | HTTP | Description |
+|--------|------|-------------|
+| [`listUsers`](#listusers) | `GET /api/auth/users` | Retrieve all system users |
+| [`createUser`](#createuser) | `POST /api/auth/users` | Create a new user account |
+| [`updateUser`](#updateuser) | `PATCH /api/auth/users/:id` | Update an existing user account |
+| [`deleteUser`](#deleteuser) | `DELETE /api/auth/users/:id` | Delete a user account |
+
+## Source
+
+```typescript
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+export type UserRole = 'ADMIN' | 'MESA' | 'AREA' | 'USUARIO';
+
+export interface UserDto {
+  id: string;
+  email: string;
+  nombre: string;
+  rol: UserRole;
+  area?: string | null;
+  telefono?: string | null;
+  is_active: boolean;
+}
+
+export interface UserCreatePayload {
+  email: string;
+  nombre: string;
+  password: string;
+  rol: UserRole;
+  area?: string | null;
+  telefono?: string | null;
+}
+
+export interface UserUpdatePayload {
+  email?: string;
+  nombre?: string;
+  password?: string;
+  rol?: UserRole;
+  area?: string | null;
+  telefono?: string | null;
+  is_active?: boolean;
+}
+
+@Injectable({ providedIn: 'root' })
+export class UsersService {
+  private http = inject(HttpClient);
+  private base = 'http://127.0.0.1:8000';
+
+  listUsers(): Observable<UserDto[]> {
+    return this.http.get<UserDto[]>(`${this.base}/api/auth/users`);
+  }
+
+  createUser(payload: UserCreatePayload): Observable<{ message: string; id: string }> {
+    return this.http.post<{ message: string; id: string }>(`${this.base}/api/auth/users`, payload);
+  }
+
+  updateUser(userId: string, payload: UserUpdatePayload): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/api/auth/users/${userId}`, payload);
+  }
+
+  deleteUser(userId: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.base}/api/auth/users/${userId}`);
+  }
+}
+```
+
+## Methods
+
+### `listUsers`
+
+```typescript
+listUsers(): Observable<UserDto[]>
+```
+
+Retrieves all user accounts registered in the system.
+
+**HTTP:** `GET /api/auth/users`
+
+**Parameters:** None.
+
+**Returns:** `Observable<UserDto[]>` — array of all user objects. See [UserDto](/reference/user-model#userdto-interface) for field details.
+
+---
+
+### `createUser`
+
+```typescript
+createUser(payload: UserCreatePayload): Observable<{ message: string; id: string }>
+```
+
+Creates a new user account.
+
+**HTTP:** `POST /api/auth/users`
+
+**Parameters**
+
+<ParamField body="payload" type="UserCreatePayload" required>
+  The new user's account details. See [UserCreatePayload](/reference/user-model#usercreate-payload-interface) for all fields.
+</ParamField>
+
+**Returns:** `Observable<{ message: string; id: string }>` — confirmation message and the UUID of the newly created user.
+
+<ResponseField name="message" type="string" required>
+  Confirmation message from the server.
+</ResponseField>
+
+<ResponseField name="id" type="string" required>
+  UUID of the newly created user account.
+</ResponseField>
+
+---
+
+### `updateUser`
+
+```typescript
+updateUser(userId: string, payload: UserUpdatePayload): Observable<{ message: string }>
+```
+
+Updates one or more fields on an existing user account. Only include the fields you want to change.
+
+**HTTP:** `PATCH /api/auth/users/:id`
+
+**Parameters**
+
+<ParamField path="userId" type="string" required>
+  UUID of the user account to update.
+</ParamField>
+
+<ParamField body="payload" type="UserUpdatePayload" required>
+  Partial update payload. All fields are optional. See [UserUpdatePayload](/reference/user-model#userupdatepayload-interface) for all fields.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+### `deleteUser`
+
+```typescript
+deleteUser(userId: string): Observable<{ message: string }>
+```
+
+Permanently deletes a user account.
+
+**HTTP:** `DELETE /api/auth/users/:id`
+
+<Warning>
+  This action is irreversible. Consider setting `is_active` to `false` via `updateUser` if you want to deactivate the account without deleting it.
+</Warning>
+
+**Parameters**
+
+<ParamField path="userId" type="string" required>
+  UUID of the user account to delete.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+## Usage example
+
+Inject `UsersService` into any component or service using Angular's `inject` function or constructor injection.
+
+```typescript
+import { Component, inject, OnInit } from '@angular/core';
+// UsersService is not part of the public 'shared' path alias.
+// Import directly via the relative path from your component.
+import { UsersService, UserDto, UserCreatePayload } from '../../../../../shared/src/lib/users.service';
+
+@Component({
+  selector: 'app-user-management',
+  templateUrl: './user-management.component.html',
+})
+export class UserManagementComponent implements OnInit {
+  private usersService = inject(UsersService);
+
+  users: UserDto[] = [];
+
+  ngOnInit(): void {
+    this.usersService.listUsers().subscribe({
+      next: (users) => (this.users = users),
+      error: (err) => console.error('Failed to load users', err),
+    });
+  }
+
+  createUser(): void {
+    const payload: UserCreatePayload = {
+      email: 'nuevo@example.com',
+      nombre: 'Nuevo Agente',
+      password: 'SecurePass123',
+      rol: 'MESA',
+    };
+
+    this.usersService.createUser(payload).subscribe({
+      next: (res) => console.log('Created user with id:', res.id),
+      error: (err) => console.error(err),
+    });
+  }
+
+  deactivateUser(userId: string): void {
+    this.usersService.updateUser(userId, { is_active: false }).subscribe({
+      next: (res) => console.log(res.message),
+    });
+  }
+}
+```

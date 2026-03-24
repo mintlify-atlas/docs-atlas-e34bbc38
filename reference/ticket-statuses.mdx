@@ -1,0 +1,109 @@
+---
+title: "Ticket statuses and types"
+description: "Complete reference for ticket status, type, and priority values"
+---
+
+This page documents all enum-like union types used for categorizing and tracking tickets. These types are defined in `projects/shared/src/models/ticket.model.ts`.
+
+## `TicketStatus`
+
+Represents the current lifecycle stage of a ticket.
+
+```typescript
+export type TicketStatus =
+  | 'ABIERTO'
+  | 'EN_PROCESO'
+  | 'PAUSADO'
+  | 'RESUELTO'
+  | 'CANCELADO'
+  | 'CERRADO';
+```
+
+| Value | Label | Description |
+|-------|-------|-------------|
+| `ABIERTO` | Abierto | The ticket has been submitted and is waiting to be picked up by an agent. This is the default status on creation. |
+| `EN_PROCESO` | En proceso | An agent has taken ownership and is actively working on the ticket. |
+| `PAUSADO` | Pausado | Work on the ticket is temporarily on hold, for example while waiting on a response from the requester or a third party. |
+| `RESUELTO` | Resuelto | The issue has been addressed and a resolution has been provided to the requester. |
+| `CANCELADO` | Cancelado | The ticket was closed without resolution, typically because it was a duplicate, out of scope, or withdrawn by the requester. |
+| `CERRADO` | Cerrado | The ticket has been fully closed after resolution was confirmed or the review period elapsed. |
+
+<Note>
+  The `TicketStatus` type uses `EN_PROCESO` (underscore) as the canonical TypeScript value. However, the admin ticket detail form maps this to `'EN PROCESO'` (with a space) before sending it in update payloads to `POST /api/tickets/:id/actualizar`. If you integrate with this endpoint directly, use `'EN PROCESO'` (space) as the `estado` value.
+</Note>
+
+## `TicketTipo`
+
+Classifies the nature of the request submitted by the requester.
+
+```typescript
+export type TicketTipo =
+  | 'PETICION'
+  | 'QUEJA'
+  | 'RECLAMO'
+  | 'SUGERENCIA'
+  | 'INCIDENTE'
+  | 'SOLICITUD'
+  | 'CONSULTA';
+```
+
+| Value | Label | Description |
+|-------|-------|-------------|
+| `PETICION` | Petición | A general request for a service or action. |
+| `QUEJA` | Queja | A complaint about a service, product, or experience. |
+| `RECLAMO` | Reclamo | A formal claim or dispute requiring a resolution or response. |
+| `SUGERENCIA` | Sugerencia | Feedback or a recommendation for improvement. |
+| `INCIDENTE` | Incidente | An unexpected event or failure that disrupts normal operations. |
+| `SOLICITUD` | Solicitud | A formal request, typically for access, resources, or approvals. |
+| `CONSULTA` | Consulta | An informational inquiry that does not require a service action. |
+
+## `TicketPrioridad`
+
+Indicates the urgency of the ticket and determines the SLA time allocated.
+
+```typescript
+export type TicketPrioridad =
+  | 'BAJA'
+  | 'MEDIA'
+  | 'ALTA'
+  | 'URGENTE';
+```
+
+| Value | Label | Description | SLA implication |
+|-------|-------|-------------|----------------|
+| `BAJA` | Baja | Low urgency. The issue has minimal impact on operations. | Longest resolution window. |
+| `MEDIA` | Media | Standard urgency. The default priority when none is specified. | Standard SLA window. |
+| `ALTA` | Alta | High urgency. The issue significantly impacts one or more users or processes. | Reduced SLA window. |
+| `URGENTE` | Urgente | Critical urgency. The issue blocks operations or affects a large number of users. | Shortest SLA window; escalated immediately. |
+
+<Tip>
+  The `slaHoras` field on the `Ticket` object reflects the number of hours allocated based on the assigned priority. Use `fechaLimiteSla` to determine the exact deadline.
+</Tip>
+
+## Area options
+
+The `area` field on a ticket indicates which department is responsible for handling it. The following values are supported by the admin interface.
+
+```typescript
+const areaOptions = [
+  { value: 'SISTEMAS',       label: 'Sistemas' },
+  { value: 'SOPORTE TÉCNICO', label: 'Soporte técnico' },
+  { value: 'REDES',          label: 'Redes' },
+  { value: 'INFRAESTRUCTURA', label: 'Infraestructura' },
+  { value: 'DESARROLLO',     label: 'Desarrollo' },
+  { value: 'MESA DE AYUDA',  label: 'Mesa de ayuda' },
+];
+```
+
+| Value | Label | Description |
+|-------|-------|-------------|
+| `SISTEMAS` | Sistemas | General IT systems team. |
+| `SOPORTE TÉCNICO` | Soporte técnico | Technical support for end-user issues. |
+| `REDES` | Redes | Networking infrastructure team. |
+| `INFRAESTRUCTURA` | Infraestructura | Servers, hardware, and platform infrastructure. |
+| `DESARROLLO` | Desarrollo | Software development team. |
+| `MESA DE AYUDA` | Mesa de ayuda | The central help desk. Default area when none is specified. |
+
+<Note>
+  When no area is specified on ticket creation, the system defaults to `MESA DE AYUDA`.
+</Note>

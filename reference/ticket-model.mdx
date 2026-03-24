@@ -1,0 +1,402 @@
+---
+title: "Ticket model"
+description: "TypeScript interfaces and types for the Ticket data model"
+---
+
+The ticket model defines the core data structures used throughout Front Helpdesk. All interfaces are exported from `projects/shared/src/models/ticket.model.ts`.
+
+## Source
+
+```typescript
+export type TicketStatus =
+  | 'ABIERTO'
+  | 'EN_PROCESO'
+  | 'PAUSADO'
+  | 'RESUELTO'
+  | 'CANCELADO'
+  | 'CERRADO';
+
+export type TicketTipo =
+  | 'PETICION'
+  | 'QUEJA'
+  | 'RECLAMO'
+  | 'SUGERENCIA'
+  | 'INCIDENTE'
+  | 'SOLICITUD'
+  | 'CONSULTA';
+
+export type TicketPrioridad =
+  | 'BAJA'
+  | 'MEDIA'
+  | 'ALTA'
+  | 'URGENTE';
+
+export interface Ticket {
+  id: string;
+  label: string;
+  tipo?: TicketTipo;
+  nombre: string;
+  documento?: string;
+  correo?: string;
+  telefono?: string;
+  empresaDepartamento?: string;
+  categoria?: string;
+  subcategoria?: string;
+  asunto?: string;
+  descripcion: string;
+  estado: TicketStatus;
+  prioridad: TicketPrioridad | string;
+  slaHoras?: number;
+  fechaLimiteSla?: string;
+  area?: string;
+  creadoEn: string;
+  actualizadoEn?: string;
+}
+
+export interface TicketMDA extends Ticket {
+  horasRestantes?: number;
+  slaVencido?: boolean;
+  agenteNombre?: string | null;
+}
+
+export interface TicketCreatePayload {
+  nombre: string;
+  documento?: string | null;
+  email: string;
+  telefono?: string | null;
+  tieneWhatsapp?: boolean;
+  empresaDepartamento?: string | null;
+  tipo: TicketTipo;
+  categoria: string;
+  subcategoria?: string | null;
+  asunto?: string | null;
+  descripcion: string;
+  prioridad: TicketPrioridad | string;
+  areaAsignada?: string | null;
+}
+
+export interface TicketCreateResponse {
+  ticketUuid: string;
+  ticketLabel: string;
+  estado: string;
+  tipo: string;
+  prioridad: string;
+  slaHoras: number;
+  fechaCreacion: string;
+  fechaLimiteSla: string;
+  mensaje: string;
+}
+
+export interface TicketConsultaPayload {
+  label: string;
+  email: string;
+}
+
+export interface TicketConsultaPublica {
+  uuid: string;
+  ticket_label: string;
+  tipo_solicitud?: string;
+  categoria?: string;
+  subcategoria?: string;
+  asunto?: string;
+  descripcion_problema?: string;
+  area_asignada?: string;
+  estado?: string;
+  prioridad?: string;
+  sla_horas?: number;
+  creado_en?: string;
+  fecha_limite_sla?: string;
+}
+
+export interface TicketConsultaResponse {
+  ticket: TicketConsultaPublica | null;
+  historial?: any[];
+}
+```
+
+## `Ticket` interface
+
+The base ticket object returned from the API for authenticated admin and agent views.
+
+<ResponseField name="id" type="string" required>
+  UUID that uniquely identifies the ticket.
+</ResponseField>
+
+<ResponseField name="label" type="string" required>
+  Human-readable ticket reference (e.g. `TK-2024-0001`). Use this value when displaying or searching for tickets.
+</ResponseField>
+
+<ResponseField name="tipo" type="TicketTipo">
+  Request type. See [`TicketTipo`](/reference/ticket-statuses#tickettipo) for all valid values.
+</ResponseField>
+
+<ResponseField name="nombre" type="string" required>
+  Full name of the requester who submitted the ticket.
+</ResponseField>
+
+<ResponseField name="documento" type="string">
+  Requester's ID document number.
+</ResponseField>
+
+<ResponseField name="correo" type="string">
+  Requester's email address.
+</ResponseField>
+
+<ResponseField name="telefono" type="string">
+  Requester's phone number.
+</ResponseField>
+
+<ResponseField name="empresaDepartamento" type="string">
+  Company or department the requester belongs to.
+</ResponseField>
+
+<ResponseField name="categoria" type="string">
+  Top-level classification category for the ticket.
+</ResponseField>
+
+<ResponseField name="subcategoria" type="string">
+  Sub-classification within the category.
+</ResponseField>
+
+<ResponseField name="asunto" type="string">
+  Brief subject line for the ticket.
+</ResponseField>
+
+<ResponseField name="descripcion" type="string" required>
+  Full description of the request or issue.
+</ResponseField>
+
+<ResponseField name="estado" type="TicketStatus" required>
+  Current lifecycle status of the ticket. See [`TicketStatus`](/reference/ticket-statuses#ticketstatus) for all valid values.
+</ResponseField>
+
+<ResponseField name="prioridad" type="TicketPrioridad | string" required>
+  Assigned priority level. Prefer one of the `TicketPrioridad` values (`BAJA`, `MEDIA`, `ALTA`, `URGENTE`). See [`TicketPrioridad`](/reference/ticket-statuses#ticketprioridad).
+</ResponseField>
+
+<ResponseField name="slaHoras" type="number">
+  Number of hours allowed by the SLA agreement for this ticket.
+</ResponseField>
+
+<ResponseField name="fechaLimiteSla" type="string">
+  ISO 8601 date string representing the SLA deadline.
+</ResponseField>
+
+<ResponseField name="area" type="string">
+  The department area the ticket is assigned to. See [area options](/reference/ticket-statuses#area-options).
+</ResponseField>
+
+<ResponseField name="creadoEn" type="string" required>
+  ISO 8601 date string for when the ticket was created.
+</ResponseField>
+
+<ResponseField name="actualizadoEn" type="string">
+  ISO 8601 date string for when the ticket was last updated.
+</ResponseField>
+
+## `TicketMDA` interface
+
+`TicketMDA` extends `Ticket` with computed SLA fields added by the backend for the admin/agent (MDA) view.
+
+<ResponseField name="horasRestantes" type="number">
+  Hours remaining before the SLA deadline expires. Negative values indicate the SLA has already been breached.
+</ResponseField>
+
+<ResponseField name="slaVencido" type="boolean">
+  `true` when the SLA deadline has passed and the ticket has not been resolved.
+</ResponseField>
+
+<ResponseField name="agenteNombre" type="string | null">
+  Display name of the agent currently assigned to the ticket. `null` when no agent is assigned.
+</ResponseField>
+
+## `TicketCreatePayload` interface
+
+Use this payload when creating a new ticket via the admin API.
+
+<ParamField body="nombre" type="string" required>
+  Full name of the person submitting the ticket.
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Email address of the requester. Used to look up the ticket later.
+</ParamField>
+
+<ParamField body="tipo" type="TicketTipo" required>
+  Request type. Must be one of the `TicketTipo` values.
+</ParamField>
+
+<ParamField body="categoria" type="string" required>
+  Top-level category for the ticket.
+</ParamField>
+
+<ParamField body="descripcion" type="string" required>
+  Full description of the request or issue.
+</ParamField>
+
+<ParamField body="prioridad" type="TicketPrioridad | string" required>
+  Priority level assigned to the ticket.
+</ParamField>
+
+<ParamField body="documento" type="string | null">
+  Requester's ID document number.
+</ParamField>
+
+<ParamField body="telefono" type="string | null">
+  Requester's phone number.
+</ParamField>
+
+<ParamField body="tieneWhatsapp" type="boolean">
+  Whether the phone number provided supports WhatsApp.
+</ParamField>
+
+<ParamField body="empresaDepartamento" type="string | null">
+  Company or department the requester belongs to.
+</ParamField>
+
+<ParamField body="subcategoria" type="string | null">
+  Sub-classification within the category.
+</ParamField>
+
+<ParamField body="asunto" type="string | null">
+  Brief subject line for the ticket.
+</ParamField>
+
+<ParamField body="areaAsignada" type="string | null">
+  Target area to assign the ticket to on creation.
+</ParamField>
+
+## `TicketCreateResponse` interface
+
+Returned by the API after a ticket is successfully created.
+
+<ResponseField name="ticketUuid" type="string" required>
+  UUID assigned to the newly created ticket.
+</ResponseField>
+
+<ResponseField name="ticketLabel" type="string" required>
+  Human-readable reference label (e.g. `TK-2024-0001`).
+</ResponseField>
+
+<ResponseField name="estado" type="string" required>
+  Initial status of the ticket, typically `ABIERTO`.
+</ResponseField>
+
+<ResponseField name="tipo" type="string" required>
+  Request type as provided in the payload.
+</ResponseField>
+
+<ResponseField name="prioridad" type="string" required>
+  Assigned priority level.
+</ResponseField>
+
+<ResponseField name="slaHoras" type="number" required>
+  Number of SLA hours allocated for this ticket based on its priority.
+</ResponseField>
+
+<ResponseField name="fechaCreacion" type="string" required>
+  ISO 8601 date string for when the ticket was created.
+</ResponseField>
+
+<ResponseField name="fechaLimiteSla" type="string" required>
+  ISO 8601 date string for the SLA deadline.
+</ResponseField>
+
+<ResponseField name="mensaje" type="string" required>
+  Confirmation message from the server.
+</ResponseField>
+
+## `TicketConsultaPayload` interface
+
+Use this payload to look up a ticket from the public-facing consultation endpoint.
+
+<ParamField body="label" type="string" required>
+  The ticket reference label (e.g. `TK-2024-0001`).
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  The email address used when the ticket was submitted. Used to verify ownership.
+</ParamField>
+
+## `TicketConsultaPublica` interface
+
+The limited ticket view returned to end users from the public consultation endpoint.
+
+<ResponseField name="uuid" type="string" required>
+  UUID of the ticket.
+</ResponseField>
+
+<ResponseField name="ticket_label" type="string" required>
+  Human-readable ticket reference.
+</ResponseField>
+
+<ResponseField name="tipo_solicitud" type="string">
+  Request type label.
+</ResponseField>
+
+<ResponseField name="categoria" type="string">
+  Ticket category.
+</ResponseField>
+
+<ResponseField name="subcategoria" type="string">
+  Ticket sub-category.
+</ResponseField>
+
+<ResponseField name="asunto" type="string">
+  Subject line of the ticket.
+</ResponseField>
+
+<ResponseField name="descripcion_problema" type="string">
+  Description of the request or issue.
+</ResponseField>
+
+<ResponseField name="area_asignada" type="string">
+  Department area the ticket is assigned to.
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Current lifecycle status.
+</ResponseField>
+
+<ResponseField name="prioridad" type="string">
+  Assigned priority level.
+</ResponseField>
+
+<ResponseField name="sla_horas" type="number">
+  Number of SLA hours allocated for the ticket.
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  ISO 8601 date string for when the ticket was created.
+</ResponseField>
+
+<ResponseField name="fecha_limite_sla" type="string">
+  ISO 8601 date string for the SLA deadline.
+</ResponseField>
+
+## `TicketConsultaResponse` interface
+
+Wrapper returned by the public consultation endpoint.
+
+<ResponseField name="ticket" type="TicketConsultaPublica | null" required>
+  The ticket data if found and the email matches. `null` when no matching ticket exists.
+  <Expandable title="properties">
+    <ResponseField name="uuid" type="string">UUID of the ticket.</ResponseField>
+    <ResponseField name="ticket_label" type="string">Human-readable ticket reference.</ResponseField>
+    <ResponseField name="tipo_solicitud" type="string">Request type label.</ResponseField>
+    <ResponseField name="categoria" type="string">Ticket category.</ResponseField>
+    <ResponseField name="subcategoria" type="string">Ticket sub-category.</ResponseField>
+    <ResponseField name="asunto" type="string">Subject line.</ResponseField>
+    <ResponseField name="descripcion_problema" type="string">Issue description.</ResponseField>
+    <ResponseField name="area_asignada" type="string">Assigned department area.</ResponseField>
+    <ResponseField name="estado" type="string">Current status.</ResponseField>
+    <ResponseField name="prioridad" type="string">Priority level.</ResponseField>
+    <ResponseField name="sla_horas" type="number">SLA hours allocated.</ResponseField>
+    <ResponseField name="creado_en" type="string">Creation date (ISO 8601).</ResponseField>
+    <ResponseField name="fecha_limite_sla" type="string">SLA deadline (ISO 8601).</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="historial" type="any[]">
+  Array of historical activity entries for the ticket.
+</ResponseField>

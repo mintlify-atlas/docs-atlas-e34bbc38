@@ -1,0 +1,105 @@
+---
+title: "Backend API configuration"
+description: "Connecting Front Helpdesk to a backend REST API"
+---
+
+Front Helpdesk expects a REST API backend that exposes endpoints under a configurable base URL. The admin app reads this URL from `environment.apiBase`; the shared services currently hardcode it (see [Environment configuration](/configuration/environment)).
+
+## Base URL structure
+
+All API endpoints are prefixed with the base URL followed by a resource path segment:
+
+```
+<apiBase>/api/auth/...
+<apiBase>/api/tickets/...
+```
+
+For local development the default base URL is `http://127.0.0.1:8000`. For the hosted demo the admin production environment points to `https://back-helpdesk-dmep.onrender.com`.
+
+## Endpoints by resource
+
+### Auth endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/login` | Authenticate a user and receive a JWT |
+| `GET` | `/api/auth/users` | List all users |
+| `POST` | `/api/auth/users` | Create a new user |
+| `PATCH` | `/api/auth/users/:id` | Update an existing user |
+| `DELETE` | `/api/auth/users/:id` | Delete a user |
+
+### Ticket endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/tickets/crear` | Create a new ticket |
+| `POST` | `/api/tickets/consultar` | Query tickets by filter |
+| `GET` | `/api/tickets/dashboard` | Fetch dashboard ticket list |
+| `GET` | `/api/tickets/dashboard-metricas` | Fetch dashboard metrics |
+| `GET` | `/api/tickets/:id` | Get a single ticket by ID |
+| `POST` | `/api/tickets/:id/actualizar` | Update ticket status, priority, area, and response |
+| `POST` | `/api/tickets/:id/asignar` | Assign ticket to an agent |
+| `POST` | `/api/tickets/:id/transferir` | Transfer ticket to a different area or agent |
+| `POST` | `/api/tickets/:id/reclasificar` | Reclassify ticket priority and category |
+| `POST` | `/api/tickets/:id/pausar` | Pause a ticket |
+| `POST` | `/api/tickets/:id/reabrir` | Reopen a ticket |
+| `POST` | `/api/tickets/:id/cancelar` | Cancel a ticket |
+| `POST` | `/api/tickets/:id/archivar` | Archive a ticket |
+
+<Note>
+  `TicketsService` contains a commented-out reference to a hosted backend: `https://back-helpdesk-dmep.onrender.com`. You can uncomment that line (and remove the localhost line) to switch the shared service to the production URL without modifying `environment.prod.ts`.
+</Note>
+
+## JWT authentication
+
+After a successful `POST /api/auth/login` call the backend returns an `access_token`. `AuthService` stores this token in `localStorage` under the key `admin_token`.
+
+Every subsequent request from the admin app automatically receives an `Authorization: Bearer <token>` header, added by `authInterceptor`:
+
+```typescript projects/admin/src/app/core/auth/auth.interceptor.ts
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const auth = inject(AuthService);
+  const token = auth.getToken();
+
+  // Skip the token on the login request itself
+  if (!token || req.url.includes('/api/auth/login')) {
+    return next(req);
+  }
+
+  const authReq = req.clone({
+    setHeaders: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  return next(authReq);
+};
+```
+
+The interceptor is registered globally in the admin app configuration:
+
+```typescript projects/admin/src/app/app.config.ts
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideHttpClient(withInterceptors([authInterceptor]))
+  ]
+};
+```
+
+The public app does **not** register `authInterceptor`. Requests from the public app go to the ticket and user endpoints unauthenticated (or using whatever auth mechanism the backend enforces for those routes).
+
+## CORS requirements
+
+When running the Angular dev server, requests originate from `http://localhost:4200` by default. Your backend must include the appropriate CORS headers to allow this origin:
+
+```
+Access-Control-Allow-Origin: http://localhost:4200
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Authorization
+```
+
+In production, replace `http://localhost:4200` with your deployed frontend domain.
+
+<Tip>
+  If you run both the admin and public apps simultaneously, they use different ports (typically `4200` and `4201`). Make sure your backend allows both origins during development, or use a proxy configuration in `angular.json` to forward API calls through the dev server.
+</Tip>

@@ -1,0 +1,146 @@
+---
+title: "Environment configuration"
+description: "Configuring environment variables and API endpoints for both apps"
+---
+
+Front Helpdesk consists of two Angular applications — **admin** and **public** — each with its own environment configuration. These files control whether the app runs in development or production mode and which backend URL it targets.
+
+<Tabs>
+  <Tab title="Admin app">
+
+## Admin environment files
+
+The admin app reads its backend URL from `projects/admin/src/environments/environment.ts`:
+
+```typescript projects/admin/src/environments/environment.ts
+export const environment = {
+  production: false,
+  apiBase: 'http://127.0.0.1:8000'
+};
+```
+
+The production counterpart lives at `projects/admin/src/environments/environment.prod.ts`:
+
+```typescript projects/admin/src/environments/environment.prod.ts
+export const environment = {
+  production: true,
+  apiBase: 'hhttps://back-helpdesk-dmep.onrender.com'
+};
+```
+
+<Warning>
+  The `apiBase` value in `environment.prod.ts` contains a typo — `hhttps://` has a double `h`. Correct it to `https://` before deploying to production, or replace the URL entirely with your own backend.
+</Warning>
+
+### How `apiBase` is used
+
+`AuthService` imports `environment` directly and stores `apiBase` as its base URL for all HTTP calls:
+
+```typescript projects/admin/src/app/core/auth/auth.service.ts
+import { environment } from '../../../environments/environment';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private base = environment.apiBase;
+
+  login(email: string, password: string) {
+    return this.http.post<any>(`${this.base}/api/auth/login`, { email, password });
+  }
+}
+```
+
+Angular replaces `environment.ts` with `environment.prod.ts` automatically when you build with the `production` configuration (see [Switching environments](#switching-environments) below).
+
+### Setting a different backend URL
+
+Update `apiBase` in the appropriate file for the target environment:
+
+```typescript
+export const environment = {
+  production: true,
+  apiBase: 'https://your-backend.example.com'
+};
+```
+
+<Warning>
+  The default value `http://127.0.0.1:8000` points to a local development server. Replace it in `environment.prod.ts` before deploying the admin app to production.
+</Warning>
+
+  </Tab>
+  <Tab title="Public app">
+
+## Public environment files
+
+The public app has the same structure at `projects/public/src/environments/`:
+
+```typescript projects/public/src/environments/environment.ts
+export const environment = {
+  production: false,
+  apiBase: 'http://127.0.0.1:8000'
+};
+```
+
+```typescript projects/public/src/environments/environment.prod.ts
+export const environment = {
+  production: true,
+  apiBase: 'https://api.tudominio.com'
+};
+```
+
+### Hardcoded URLs in shared services
+
+Unlike the admin app, the shared `TicketsService` and `UsersService` currently hardcode the base URL instead of reading from `environment`:
+
+```typescript projects/shared/src/lib/tickets.service.ts
+// private readonly baseUrl = 'https://back-helpdesk-dmep.onrender.com';
+private readonly baseUrl = 'http://127.0.0.1:8000/api/tickets';
+```
+
+```typescript projects/shared/src/lib/users.service.ts
+private base = 'http://127.0.0.1:8000';
+```
+
+To point these services at a different backend, update the `baseUrl` / `base` properties in each file, or refactor them to inject `environment.apiBase` the same way `AuthService` does:
+
+```typescript
+import { environment } from '../../environments/environment';
+
+@Injectable({ providedIn: 'root' })
+export class TicketsService {
+  private readonly baseUrl = `${environment.apiBase}/api/tickets`;
+}
+```
+
+<Warning>
+  The `http://127.0.0.1:8000` default in `TicketsService` and `UsersService` is hardcoded and **not** overridden by the production environment file. You must update these values manually before deploying the public app.
+</Warning>
+
+  </Tab>
+</Tabs>
+
+## Switching environments
+
+Angular CLI selects the correct environment file based on the `--configuration` flag.
+
+**Development (default)** — uses `environment.ts`:
+
+```bash
+ng serve
+# or for a named project
+ng serve admin
+ng serve public
+```
+
+**Production** — uses `environment.prod.ts`:
+
+```bash
+ng build --configuration production
+```
+
+You can also define custom named configurations (for example, `staging`) in `angular.json` and add a matching `environment.staging.ts` file, then build with:
+
+```bash
+ng build --configuration staging
+```
+
+See the [Angular deployment guide](https://angular.dev/tools/cli/deployment) for details on managing multiple environments.

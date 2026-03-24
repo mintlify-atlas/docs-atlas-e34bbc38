@@ -1,0 +1,498 @@
+---
+title: "TicketsService"
+description: "Angular service for all ticket-related API calls"
+---
+
+`TicketsService` is part of the shared library (`projects/shared/src/lib/tickets.service.ts`) and is injectable at the root level — you do not need to add it to any module's `providers` array.
+
+<Note>
+  The service currently targets `http://127.0.0.1:8000/api/tickets`. The production URL (`https://back-helpdesk-dmep.onrender.com`) is commented out in the source. To switch to production, uncomment the `baseUrl` line for the Render deployment and comment out the localhost line in `tickets.service.ts`.
+</Note>
+
+## Method summary
+
+| Method | HTTP | Description |
+|--------|------|-------------|
+| [`create`](#create) | `POST /api/tickets/crear` | Submit a new ticket |
+| [`consultar`](#consultar) | `POST /api/tickets/consultar` | Look up a ticket from the public portal |
+| [`dashboard`](#dashboard) | `GET /api/tickets/dashboard` | List all tickets for the admin dashboard |
+| [`getById`](#getbyid) | `GET /api/tickets/:id` | Fetch a single ticket with its history |
+| [`dashboardMetricas`](#dashboardmetricas) | `GET /api/tickets/dashboard-metricas` | Fetch aggregated KPI metrics |
+| [`actualizar`](#actualizar) | `POST /api/tickets/:id/actualizar` | Update status, priority, area, or response |
+| [`asignar`](#asignar) | `POST /api/tickets/:id/asignar` | Assign a ticket to an agent |
+| [`transferir`](#transferir) | `POST /api/tickets/:id/transferir` | Transfer a ticket to a new area or agent |
+| [`reclasificar`](#reclasificar) | `POST /api/tickets/:id/reclasificar` | Change priority and category |
+| [`pausar`](#pausar) | `POST /api/tickets/:id/pausar` | Pause an active ticket |
+| [`reabrir`](#reabrir) | `POST /api/tickets/:id/reabrir` | Reopen a closed or paused ticket |
+| [`cancelar`](#cancelar) | `POST /api/tickets/:id/cancelar` | Cancel a ticket (user or agent) |
+| [`archivar`](#archivar) | `POST /api/tickets/:id/archivar` | Archive a resolved ticket |
+
+## Source
+
+```typescript
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+import {
+  TicketCreatePayload,
+  TicketCreateResponse,
+  TicketConsultaPayload,
+  TicketConsultaResponse,
+  TicketMDA,
+} from '../models/ticket.model';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class TicketsService {
+  private readonly http = inject(HttpClient);
+  // private readonly baseUrl = 'https://back-helpdesk-dmep.onrender.com';
+  private readonly baseUrl = 'http://127.0.0.1:8000/api/tickets';
+
+  create(payload: TicketCreatePayload): Observable<TicketCreateResponse> {
+    return this.http.post<TicketCreateResponse>(`${this.baseUrl}/crear`, payload);
+  }
+
+  consultar(payload: TicketConsultaPayload): Observable<TicketConsultaResponse> {
+    return this.http.post<TicketConsultaResponse>(`${this.baseUrl}/consultar`, payload);
+  }
+
+  dashboard(): Observable<TicketMDA[]> {
+    return this.http.get<TicketMDA[]>(`${this.baseUrl}/dashboard`);
+  }
+
+  getById(ticketId: string): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/${ticketId}`);
+  }
+
+  dashboardMetricas(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/dashboard-metricas`);
+  }
+
+  actualizar(
+    ticketId: string,
+    payload: {
+      estado: string;
+      prioridad: string;
+      area: string;
+      respuesta: string;
+    }
+  ): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(
+      `${this.baseUrl}/${ticketId}/actualizar`,
+      payload
+    );
+  }
+
+  asignar(ticketId: string, agenteId: string, motivo: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/${ticketId}/asignar`, {
+      agenteId,
+      motivo,
+    });
+  }
+
+  transferir(
+    ticketId: string,
+    nuevaArea: string,
+    agenteId: string,
+    motivo: string
+  ): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/${ticketId}/transferir`, {
+      nuevaArea,
+      agenteId,
+      motivo,
+    });
+  }
+
+  reclasificar(
+    ticketId: string,
+    nuevaPrioridad: string,
+    nuevaCategoria: string,
+    motivo: string
+  ): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/${ticketId}/reclasificar`, {
+      nuevaPrioridad,
+      nuevaCategoria,
+      motivo,
+    });
+  }
+
+  pausar(ticketId: string, motivo: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/${ticketId}/pausar`, {
+      motivo,
+    });
+  }
+
+  reabrir(ticketId: string, motivo: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/${ticketId}/reabrir`, {
+      motivo,
+    });
+  }
+
+  cancelar(ticketId: string, motivo: string, rol: 'USUARIO' | 'AGENTE'): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/${ticketId}/cancelar`, {
+      motivo,
+      rol,
+    });
+  }
+
+  archivar(ticketId: string, motivo: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(
+      `${this.baseUrl}/${ticketId}/archivar`,
+      { motivo }
+    );
+  }
+}
+```
+
+## Methods
+
+### `create`
+
+```typescript
+create(payload: TicketCreatePayload): Observable<TicketCreateResponse>
+```
+
+Submits a new support ticket. Used by the public-facing portal when an end user opens a request.
+
+**HTTP:** `POST /api/tickets/crear`
+
+**Parameters**
+
+<ParamField body="payload" type="TicketCreatePayload" required>
+  The ticket creation payload. See [Ticket model](/reference/ticket-model#ticketcreatepayload) for all fields.
+</ParamField>
+
+**Returns:** `Observable<TicketCreateResponse>` — includes the new ticket's UUID, label, SLA hours, and SLA deadline. See [TicketCreateResponse](/reference/ticket-model#ticketcreateresponse).
+
+**Usage example**
+
+```typescript
+const payload: TicketCreatePayload = {
+  nombre: 'Ana García',
+  email: 'ana@example.com',
+  tipo: 'PETICION',
+  categoria: 'Soporte técnico',
+  descripcion: 'No puedo acceder al sistema desde ayer.',
+  prioridad: 'MEDIA',
+};
+
+this.ticketsService.create(payload).subscribe({
+  next: (res) => console.log('Ticket creado:', res.ticketLabel),
+  error: (err) => console.error(err),
+});
+```
+
+---
+
+### `consultar`
+
+```typescript
+consultar(payload: TicketConsultaPayload): Observable<TicketConsultaResponse>
+```
+
+Looks up a ticket by label and email. Used by the public portal so end users can track the status of their own tickets without logging in.
+
+**HTTP:** `POST /api/tickets/consultar`
+
+**Parameters**
+
+<ParamField body="payload" type="TicketConsultaPayload" required>
+  Must contain the ticket `label` and the `email` used when the ticket was created. See [TicketConsultaPayload](/reference/ticket-model#ticketconsultapayload).
+</ParamField>
+
+**Returns:** `Observable<TicketConsultaResponse>` — contains the public ticket view and its history. See [TicketConsultaResponse](/reference/ticket-model#ticketconsultaresponse).
+
+---
+
+### `dashboard`
+
+```typescript
+dashboard(): Observable<TicketMDA[]>
+```
+
+Retrieves all tickets for the admin dashboard list view. Each item includes computed SLA fields (`horasRestantes`, `slaVencido`) and the assigned agent's name.
+
+**HTTP:** `GET /api/tickets/dashboard`
+
+**Parameters:** None.
+
+**Returns:** `Observable<TicketMDA[]>` — array of tickets with admin-level SLA metadata. See [TicketMDA](/reference/ticket-model#ticketmda-interface).
+
+---
+
+### `getById`
+
+```typescript
+getById(ticketId: string): Observable<any>
+```
+
+Fetches a single ticket by its UUID, including the full activity history.
+
+**HTTP:** `GET /api/tickets/:id`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to retrieve.
+</ParamField>
+
+**Returns:** `Observable<any>` — ticket detail object with a `historial` array of activity entries.
+
+---
+
+### `dashboardMetricas`
+
+```typescript
+dashboardMetricas(): Observable<any[]>
+```
+
+Returns aggregated ticket metrics for the KPI dashboard. Use this to populate summary cards showing totals by status, priority, or area.
+
+**HTTP:** `GET /api/tickets/dashboard-metricas`
+
+**Parameters:** None.
+
+**Returns:** `Observable<any[]>` — array of metric objects from the backend.
+
+---
+
+### `actualizar`
+
+```typescript
+actualizar(
+  ticketId: string,
+  payload: { estado: string; prioridad: string; area: string; respuesta: string }
+): Observable<{ message: string }>
+```
+
+Updates the status, priority, area assignment, or agent response for a ticket.
+
+**HTTP:** `POST /api/tickets/:id/actualizar`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to update.
+</ParamField>
+
+<ParamField body="estado" type="string" required>
+  New status value. See [TicketStatus](/reference/ticket-statuses#ticketstatus) for valid values.
+</ParamField>
+
+<ParamField body="prioridad" type="string" required>
+  New priority level.
+</ParamField>
+
+<ParamField body="area" type="string" required>
+  Area to assign the ticket to.
+</ParamField>
+
+<ParamField body="respuesta" type="string" required>
+  Agent response text to attach to the ticket.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+### `asignar`
+
+```typescript
+asignar(ticketId: string, agenteId: string, motivo: string): Observable<{ message: string }>
+```
+
+Assigns a ticket to a specific agent.
+
+**HTTP:** `POST /api/tickets/:id/asignar`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to assign.
+</ParamField>
+
+<ParamField body="agenteId" type="string" required>
+  UUID of the agent to assign the ticket to.
+</ParamField>
+
+<ParamField body="motivo" type="string" required>
+  Reason for the assignment. Recorded in the ticket history.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+### `transferir`
+
+```typescript
+transferir(
+  ticketId: string,
+  nuevaArea: string,
+  agenteId: string,
+  motivo: string
+): Observable<{ message: string }>
+```
+
+Transfers a ticket to a different area and optionally reassigns it to a new agent.
+
+**HTTP:** `POST /api/tickets/:id/transferir`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to transfer.
+</ParamField>
+
+<ParamField body="nuevaArea" type="string" required>
+  The destination area.
+</ParamField>
+
+<ParamField body="agenteId" type="string" required>
+  UUID of the agent in the destination area.
+</ParamField>
+
+<ParamField body="motivo" type="string" required>
+  Reason for the transfer. Recorded in the ticket history.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+### `reclasificar`
+
+```typescript
+reclasificar(
+  ticketId: string,
+  nuevaPrioridad: string,
+  nuevaCategoria: string,
+  motivo: string
+): Observable<{ message: string }>
+```
+
+Changes the priority and category of a ticket.
+
+**HTTP:** `POST /api/tickets/:id/reclasificar`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to reclassify.
+</ParamField>
+
+<ParamField body="nuevaPrioridad" type="string" required>
+  New priority level. See [TicketPrioridad](/reference/ticket-statuses#ticketprioridad) for valid values.
+</ParamField>
+
+<ParamField body="nuevaCategoria" type="string" required>
+  New category string.
+</ParamField>
+
+<ParamField body="motivo" type="string" required>
+  Reason for reclassification. Recorded in the ticket history.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+### `pausar`
+
+```typescript
+pausar(ticketId: string, motivo: string): Observable<{ message: string }>
+```
+
+Pauses an active ticket, changing its status to `PAUSADO`.
+
+**HTTP:** `POST /api/tickets/:id/pausar`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to pause.
+</ParamField>
+
+<ParamField body="motivo" type="string" required>
+  Reason for pausing. Recorded in the ticket history.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+### `reabrir`
+
+```typescript
+reabrir(ticketId: string, motivo: string): Observable<{ message: string }>
+```
+
+Reopens a closed or paused ticket.
+
+**HTTP:** `POST /api/tickets/:id/reabrir`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to reopen.
+</ParamField>
+
+<ParamField body="motivo" type="string" required>
+  Reason for reopening. Recorded in the ticket history.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+### `cancelar`
+
+```typescript
+cancelar(ticketId: string, motivo: string, rol: 'USUARIO' | 'AGENTE'): Observable<{ message: string }>
+```
+
+Cancels a ticket. The `rol` parameter tells the backend whether the action was taken by the end user or an agent, which may affect business rules and audit logging.
+
+**HTTP:** `POST /api/tickets/:id/cancelar`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to cancel.
+</ParamField>
+
+<ParamField body="motivo" type="string" required>
+  Reason for cancellation. Recorded in the ticket history.
+</ParamField>
+
+<ParamField body="rol" type="'USUARIO' | 'AGENTE'" required>
+  The role of the actor performing the cancellation. Pass `'USUARIO'` when the end user cancels their own ticket; pass `'AGENTE'` when a help desk agent cancels it.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`
+
+---
+
+### `archivar`
+
+```typescript
+archivar(ticketId: string, motivo: string): Observable<{ message: string }>
+```
+
+Archives a resolved ticket, removing it from the active dashboard.
+
+**HTTP:** `POST /api/tickets/:id/archivar`
+
+**Parameters**
+
+<ParamField path="ticketId" type="string" required>
+  UUID of the ticket to archive.
+</ParamField>
+
+<ParamField body="motivo" type="string" required>
+  Reason for archiving. Recorded in the ticket history.
+</ParamField>
+
+**Returns:** `Observable<{ message: string }>`

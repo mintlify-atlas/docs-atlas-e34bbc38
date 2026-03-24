@@ -1,0 +1,125 @@
+---
+title: "Architecture"
+description: "Understanding the Front Helpdesk Angular multi-project workspace"
+---
+
+Front Helpdesk is an **Angular multi-project workspace** that keeps two deployable applications and one shared library in a single repository. This layout lets `public` and `admin` share types and services without duplicating code.
+
+## Workspace structure
+
+```text
+front-helpdesk/
+├── angular.json                  # Workspace and project configuration
+├── package.json
+├── projects/
+│   ├── assets/                   # Shared static assets (images, fonts)
+│   ├── public/                   # Customer-facing portal
+│   │   └── src/
+│   │       ├── app/
+│   │       │   ├── app.config.ts
+│   │       │   ├── app.routes.ts
+│   │       │   └── features/
+│   │       │       ├── create-ticket/
+│   │       │       └── track-ticket/
+│   │       ├── environments/
+│   │       │   ├── environment.ts
+│   │       │   └── environment.prod.ts
+│   │       ├── main.ts
+│   │       ├── main.server.ts
+│   │       └── server.ts
+│   ├── admin/                    # Agent and administrator panel
+│   │   └── src/
+│   │       ├── app/
+│   │       │   ├── app.config.ts
+│   │       │   ├── app.routes.ts
+│   │       │   └── features/
+│   │       │       ├── login/
+│   │       │       ├── dashboard/
+│   │       │       ├── tickets-list/
+│   │       │       ├── ticket-detail/
+│   │       │       └── users-management/
+│   │       ├── environments/
+│   │       │   ├── environment.ts
+│   │       │   └── environment.prod.ts
+│   │       ├── main.ts
+│   │       ├── main.server.ts
+│   │       └── server.ts
+│   └── shared/                   # Angular library shared by both apps
+│       └── src/
+│           ├── lib/
+│           │   └── tickets.service.ts
+│           ├── models/
+│           │   ├── ticket.model.ts
+│           │   ├── auth.model.ts
+│           │   └── dashboard.model.ts
+│           └── public-api.ts
+└── dist/                         # Build output (generated)
+    ├── public/
+    └── admin/
+```
+
+## The two applications
+
+<CardGroup cols={2}>
+  <Card title="Public portal" icon="users">
+    The customer-facing app where end users submit and track support tickets.
+    Runs at `http://localhost:4200` in development.
+
+    **Routes**
+    - `/solicitud` — create a new ticket
+    - `/consulta` — look up an existing ticket by ID and email
+
+    Uses `provideClientHydration` with event replay for full SSR hydration support.
+  </Card>
+
+  <Card title="Admin panel" icon="shield-check">
+    The internal tool for agents and administrators.
+    Runs at `http://localhost:4201` in development.
+
+    **Routes**
+    - `/login` — authentication page
+    - `/dashboard` — metrics and overview
+    - `/tickets` — ticket list
+    - `/tickets/:id` — ticket detail
+    - `/users` — user management
+
+    All routes under `/` are protected by `authGuard`. The `/login` route is protected by `loginGuard` to redirect already-authenticated users.
+  </Card>
+</CardGroup>
+
+## Shared library
+
+The `shared` project is an Angular library (built with `ng-packagr`) that both apps import. Its public API is defined in `projects/shared/src/public-api.ts` and exports:
+
+| Export | Description |
+|---|---|
+| `TicketsService` | Injectable service with methods for creating, querying, and managing tickets via the backend REST API |
+| `Ticket` | Interface representing a full ticket record |
+| `TicketMDA` | Extends `Ticket` with agent assignment and SLA metadata |
+| `TicketCreatePayload` / `TicketCreateResponse` | Request and response shapes for ticket creation |
+| `TicketConsultaPayload` / `TicketConsultaResponse` | Request and response shapes for ticket lookup |
+| `TicketStatus` | Union type of ticket statuses: `ABIERTO`, `EN_PROCESO`, `PAUSADO`, `RESUELTO`, `CANCELADO`, `CERRADO` |
+| `TicketTipo` | Union type of ticket types: `PETICION`, `QUEJA`, `RECLAMO`, `SUGERENCIA`, `INCIDENTE`, `SOLICITUD`, `CONSULTA` |
+| `TicketPrioridad` | Union type of priority levels: `BAJA`, `MEDIA`, `ALTA`, `URGENTE` |
+
+## Server-Side Rendering
+
+Both apps use **`@angular/ssr`** with an Express server entry point (`server.ts`). In production, each app is served by a Node.js process that renders pages on the server before sending HTML to the browser.
+
+The SSR server defaults to port `4000` and can be overridden via the `PORT` environment variable. Angular CLI automatically switches the environment file from `environment.ts` to `environment.prod.ts` when you build with `--configuration production`.
+
+## Build output paths
+
+| Project | Type | Output directory |
+|---|---|---|
+| `public` | Application | `dist/public/` |
+| `admin` | Application | `dist/admin/` |
+| `shared` | Library | `dist/shared/` |
+
+Both application builds use `outputMode: "server"`, which produces a `browser/` subdirectory for static assets and a `server/` subdirectory containing `server.mjs` — the entry point for the SSR server.
+
+## Key dependencies
+
+**Angular Material** (`@angular/material` v21) provides the component library used across both apps — forms, tables, navigation, and dialog components all come from this package.
+
+**Chart.js** (`chart.js` v4) combined with **ng2-charts** (`ng2-charts` v8) powers the analytics charts on the admin dashboard, rendering ticket metrics and SLA data as interactive visualisations.

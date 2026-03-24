@@ -1,0 +1,238 @@
+---
+title: "User model"
+description: "TypeScript interfaces and types for user accounts"
+---
+
+The user model defines authentication and account management data structures. Interfaces are exported from `projects/shared/src/models/auth.model.ts` and `projects/shared/src/lib/users.service.ts`.
+
+## Source
+
+### `auth.model.ts`
+
+```typescript
+export type UserRole = 'ADMIN' | 'MESA' | 'AREA' | 'USUARIO';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  nombre: string;
+  rol: UserRole;
+  area?: string | null;
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+```
+
+### `users.service.ts` interfaces
+
+```typescript
+export type UserRole = 'ADMIN' | 'MESA' | 'AREA' | 'USUARIO';
+
+export interface UserDto {
+  id: string;
+  email: string;
+  nombre: string;
+  rol: UserRole;
+  area?: string | null;
+  telefono?: string | null;
+  is_active: boolean;
+}
+
+export interface UserCreatePayload {
+  email: string;
+  nombre: string;
+  password: string;
+  rol: UserRole;
+  area?: string | null;
+  telefono?: string | null;
+}
+
+export interface UserUpdatePayload {
+  email?: string;
+  nombre?: string;
+  password?: string;
+  rol?: UserRole;
+  area?: string | null;
+  telefono?: string | null;
+  is_active?: boolean;
+}
+```
+
+## `UserRole` type
+
+All user accounts are assigned one of the following roles. The role controls what actions and views the user can access.
+
+| Value | Description |
+|-------|-------------|
+| `ADMIN` | Full administrative access. Can manage users, tickets, configuration, and reports. |
+| `MESA` | Help desk agent. Can view and update all tickets in the queue. |
+| `AREA` | Area specialist. Typically scoped to tickets assigned to their department area. |
+| `USUARIO` | End user / requester. Can submit tickets and query their own ticket status via the public portal. |
+
+```typescript
+export type UserRole = 'ADMIN' | 'MESA' | 'AREA' | 'USUARIO';
+```
+
+## `AuthUser` interface
+
+The authenticated user object embedded in the login response and available throughout the session.
+
+<ResponseField name="id" type="string" required>
+  UUID that uniquely identifies the user account.
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  Email address used to log in.
+</ResponseField>
+
+<ResponseField name="nombre" type="string" required>
+  Display name of the user.
+</ResponseField>
+
+<ResponseField name="rol" type="UserRole" required>
+  Role assigned to the user. Controls access permissions throughout the application.
+</ResponseField>
+
+<ResponseField name="area" type="string | null">
+  Department area associated with the user. Relevant for users with the `AREA` role.
+</ResponseField>
+
+## `LoginPayload` interface
+
+Send this payload to the login endpoint to authenticate a user.
+
+<ParamField body="email" type="string" required>
+  The user's registered email address.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The user's password.
+</ParamField>
+
+## `LoginResponse` interface
+
+Returned by the authentication endpoint on a successful login.
+
+<ResponseField name="access_token" type="string" required>
+  Bearer token to include in the `Authorization` header for subsequent authenticated requests.
+</ResponseField>
+
+<ResponseField name="token_type" type="string" required>
+  Token scheme. Always `bearer`.
+</ResponseField>
+
+<ResponseField name="user" type="AuthUser" required>
+  The authenticated user's profile data.
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">UUID of the user.</ResponseField>
+    <ResponseField name="email" type="string">User's email address.</ResponseField>
+    <ResponseField name="nombre" type="string">User's display name.</ResponseField>
+    <ResponseField name="rol" type="UserRole">Assigned role.</ResponseField>
+    <ResponseField name="area" type="string | null">Associated department area.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+## `UserDto` interface
+
+The full user object returned from the user management API. Use this when listing or displaying user accounts.
+
+<ResponseField name="id" type="string" required>
+  UUID that uniquely identifies the user.
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  User's email address.
+</ResponseField>
+
+<ResponseField name="nombre" type="string" required>
+  User's display name.
+</ResponseField>
+
+<ResponseField name="rol" type="UserRole" required>
+  Assigned role.
+</ResponseField>
+
+<ResponseField name="area" type="string | null">
+  Associated department area.
+</ResponseField>
+
+<ResponseField name="telefono" type="string | null">
+  User's phone number.
+</ResponseField>
+
+<ResponseField name="is_active" type="boolean" required>
+  Whether the account is currently active. Inactive accounts cannot log in.
+</ResponseField>
+
+## `UserCreatePayload` interface
+
+Use this payload when creating a new user account via the admin API.
+
+<ParamField body="email" type="string" required>
+  Email address for the new account. Must be unique.
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  Display name for the new user.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Initial password for the account.
+</ParamField>
+
+<ParamField body="rol" type="UserRole" required>
+  Role to assign to the new user.
+</ParamField>
+
+<ParamField body="area" type="string | null">
+  Department area to associate with the user. Required for users with the `AREA` role.
+</ParamField>
+
+<ParamField body="telefono" type="string | null">
+  Phone number for the user.
+</ParamField>
+
+## `UserUpdatePayload` interface
+
+Use this payload to update an existing user account. All fields are optional — only include the fields you want to change.
+
+<Note>
+  You must be authenticated as an `ADMIN` to update other user accounts.
+</Note>
+
+<ParamField body="email" type="string">
+  New email address for the account.
+</ParamField>
+
+<ParamField body="nombre" type="string">
+  Updated display name.
+</ParamField>
+
+<ParamField body="password" type="string">
+  New password for the account.
+</ParamField>
+
+<ParamField body="rol" type="UserRole">
+  Updated role assignment.
+</ParamField>
+
+<ParamField body="area" type="string | null">
+  Updated department area association.
+</ParamField>
+
+<ParamField body="telefono" type="string | null">
+  Updated phone number.
+</ParamField>
+
+<ParamField body="is_active" type="boolean">
+  Set to `false` to deactivate the account without deleting it.
+</ParamField>
